@@ -11,12 +11,41 @@
 #include <sys/types.h>
 #include <pwd.h>
 
+#define LENGTH_OF(a) (sizeof (a) / sizeof (a[0]))
+
+/*
+ * Set of colors as used by GNOME-Terminal for the “Linux” color scheme:
+ * http://git.gnome.org/browse/gnome-terminal/tree/src/terminal-profile.c
+ */
+static const GdkColor color_palette[] =
+{
+    { 0, 0x0000, 0x0000, 0x0000 },
+    { 0, 0xaaaa, 0x0000, 0x0000 },
+    { 0, 0x0000, 0xaaaa, 0x0000 },
+    { 0, 0xaaaa, 0x5555, 0x0000 },
+    { 0, 0x0000, 0x0000, 0xaaaa },
+    { 0, 0xaaaa, 0x0000, 0xaaaa },
+    { 0, 0x0000, 0xaaaa, 0xaaaa },
+    { 0, 0xaaaa, 0xaaaa, 0xaaaa },
+    { 0, 0x5555, 0x5555, 0x5555 },
+    { 0, 0xffff, 0x5555, 0x5555 },
+    { 0, 0x5555, 0xffff, 0x5555 },
+    { 0, 0xffff, 0xffff, 0x5555 },
+    { 0, 0x5555, 0x5555, 0xffff },
+    { 0, 0xffff, 0x5555, 0xffff },
+    { 0, 0x5555, 0xffff, 0xffff },
+    { 0, 0xffff, 0xffff, 0xffff },
+};
+
+/* Use light grey on black */
+static const GdkColor color_bg = { 0, 0x0000, 0x0000, 0x0000 };
+static const GdkColor color_fg = { 0, 0xdddd, 0xdddd, 0xdddd };
+
 
 static void
 configure_term_widget (VteTerminal *vtterm)
 {
     g_assert (vtterm);
-    vte_terminal_set_default_colors      (vtterm);
     vte_terminal_set_scrollback_lines    (vtterm, 4096);
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
     vte_terminal_set_allow_bold          (vtterm, TRUE);
@@ -27,6 +56,11 @@ configure_term_widget (VteTerminal *vtterm)
     vte_terminal_set_font_from_string    (vtterm, "unifont 12");
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
+    vte_terminal_set_colors              (vtterm,
+                                          &color_fg,
+                                          &color_bg,
+                                          color_palette,
+                                          LENGTH_OF (color_palette));
 }
 
 
