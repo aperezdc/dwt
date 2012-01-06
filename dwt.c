@@ -67,7 +67,7 @@ configure_term_widget (VteTerminal *vtterm)
 static void
 set_urgent (VteTerminal *vtterm, gpointer userdata)
 {
-    gtk_window_set_urgency_hint (GTK_WINDOW (userdata), 1);
+    gtk_window_set_urgency_hint (GTK_WINDOW (userdata), TRUE);
 }
 
 
