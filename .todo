@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<todo version="0.1.20">
+    <note priority="medium" time="1325865414">
+        Configurable font
+    </note>
+    <note priority="medium" time="1325865431">
+        Set working directory from CLI option
+    </note>
+    <note priority="medium" time="1325865449">
+        Accels e.g. for spawning new terminal in cwd
+    </note>
+    <note priority="medium" time="1325865484">
+        Clickable URLs using GRegexes
+    </note>
+    <note priority="medium" time="1325865778">
+        Support -e CLI option for launching arbitrary commands
+    </note>
+    <note priority="medium" time="1325874380">
+        Accels for copy/paste
+    </note>
+</todo>
