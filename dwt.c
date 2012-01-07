@@ -53,7 +53,7 @@ configure_term_widget (VteTerminal *vtterm)
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
     vte_terminal_set_scroll_on_keystroke (vtterm, FALSE);
-    vte_terminal_set_font_from_string    (vtterm, "unifont 12");
+    vte_terminal_set_font_from_string    (vtterm, "terminus 11");
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
     vte_terminal_set_colors              (vtterm,
