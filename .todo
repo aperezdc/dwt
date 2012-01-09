@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <todo version="0.1.20">
-    <note priority="medium" time="1325865414">
+    <note priority="medium" time="1325865414" done="1326072364">
         Configurable font
     </note>
-    <note priority="medium" time="1325865431">
+    <note priority="medium" time="1325865431" done="1326072368">
         Set working directory from CLI option
     </note>
     <note priority="medium" time="1325865449">
@@ -12,10 +12,13 @@
     <note priority="medium" time="1325865484">
         Clickable URLs using GRegexes
     </note>
-    <note priority="medium" time="1325865778">
+    <note priority="medium" time="1325865778" done="1326072390">
         Support -e CLI option for launching arbitrary commands
     </note>
     <note priority="medium" time="1325874380">
         Accels for copy/paste
+    </note>
+    <note priority="verylow" time="1325955510">
+        Manual page
     </note>
 </todo>
