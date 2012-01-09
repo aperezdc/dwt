@@ -13,6 +13,41 @@
 
 #define LENGTH_OF(a) (sizeof (a) / sizeof (a[0]))
 
+
+static const gchar *opt_workdir = ".";
+static const gchar *opt_command = NULL;
+static const gchar *opt_font    = "terminus 11";
+
+
+static const GOptionEntry option_entries[] =
+{
+    {
+        "command", 'e',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_STRING,
+        &opt_command,
+        "Execute the argument to this option inside the terminal",
+        "COMMAND",
+    }, {
+        "workdir", 'w',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_STRING,
+        &opt_workdir,
+        "Set working directory before running the command/shell",
+        "PATH",
+    }, {
+        "font", 'f',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_STRING,
+        &opt_font,
+        "Font used by the terminal, in FontConfig syntax",
+        "FONT",
+    }, {
+        NULL
+    },
+};
+
+
 /*
  * Set of colors as used by GNOME-Terminal for the “Linux” color scheme:
  * http://git.gnome.org/browse/gnome-terminal/tree/src/terminal-profile.c
@@ -46,6 +81,7 @@ static void
 configure_term_widget (VteTerminal *vtterm)
 {
     g_assert (vtterm);
+    g_assert (opt_font);
     vte_terminal_set_scrollback_lines    (vtterm, 4096);
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
     vte_terminal_set_allow_bold          (vtterm, TRUE);
@@ -53,7 +89,7 @@ configure_term_widget (VteTerminal *vtterm)
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
     vte_terminal_set_scroll_on_keystroke (vtterm, FALSE);
-    vte_terminal_set_font_from_string    (vtterm, "terminus 11");
+    vte_terminal_set_font_from_string    (vtterm, opt_font);
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
     vte_terminal_set_colors              (vtterm,
@@ -95,14 +131,40 @@ guess_shell (void)
 int
 main (int argc, char *argv[])
 {
-    char *cmd_argv[] = {
-        guess_shell (),
-        NULL,
-    };
+    GOptionContext *optctx = NULL;
 
     GtkWidget *window = NULL;
     GtkWidget *vtterm = NULL;
     GError    *gerror = NULL;
+
+    gchar **command = NULL;
+    gint    cmdlen = 0;
+
+    optctx = g_option_context_new ("[-e command]");
+
+    g_option_context_set_help_enabled (optctx, TRUE);
+    g_option_context_add_main_entries (optctx, option_entries, NULL);
+    g_option_context_add_group (optctx, gtk_get_option_group (TRUE));
+
+    if (!g_option_context_parse (optctx, &argc, &argv, &gerror)) {
+        g_printerr ("%s: could not parse command line: %s\n",
+                    argv[0], gerror->message);
+        g_error_free (gerror);
+        exit (EXIT_FAILURE);
+    }
+
+    g_option_context_free (optctx);
+    optctx = NULL;
+
+    if (!opt_command)
+        opt_command = guess_shell ();
+
+    if (!g_shell_parse_argv (opt_command, &cmdlen, &command, &gerror)) {
+        g_printerr ("%s: coult not parse command: %s\n",
+                    argv[0], gerror->message);
+        g_error_free (gerror);
+        exit (EXIT_FAILURE);
+    }
 
     gtk_init (&argc, &argv);
 
@@ -137,20 +199,23 @@ main (int argc, char *argv[])
                       G_CALLBACK (set_title),
                       (gpointer) window);
 
+    g_assert (opt_workdir);
+
     if (!vte_terminal_fork_command_full (VTE_TERMINAL (vtterm),
                                          VTE_PTY_DEFAULT,
-                                         g_get_home_dir (),
-                                         cmd_argv,
+                                         opt_workdir,
+                                         command,
                                          NULL,
-                                         0,
+                                         G_SPAWN_SEARCH_PATH,
                                          NULL,
                                          NULL,
                                          NULL,
                                          &gerror))
     {
-        g_printerr ("Could not spawn shell: %s\n", gerror->message);
+        g_printerr ("%s: could not spawn shell: %s\n",
+                    argv[0], gerror->message);
         g_error_free (gerror);
-        gerror = NULL;
+        exit (EXIT_FAILURE);
     }
 
     gtk_container_add (GTK_CONTAINER (window), vtterm);
