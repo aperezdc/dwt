@@ -16,6 +16,7 @@
 
 static const gchar *opt_workdir = ".";
 static const gchar *opt_command = NULL;
+static const gchar *opt_title   = "dwt";
 static const gchar *opt_font    = "terminus 11";
 
 
@@ -42,6 +43,13 @@ static const GOptionEntry option_entries[] =
         &opt_font,
         "Font used by the terminal, in FontConfig syntax",
         "FONT",
+    }, {
+        "title", 't',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_STRING,
+        &opt_title,
+        "Initial terminal window title",
+        "TITLE",
     }, {
         NULL
     },
@@ -169,7 +177,7 @@ main (int argc, char *argv[])
     gtk_init (&argc, &argv);
 
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title (GTK_WINDOW (window), "dwt");
+    gtk_window_set_title (GTK_WINDOW (window), opt_title);
 
     vtterm = vte_terminal_new ();
     configure_term_widget (VTE_TERMINAL (vtterm));
