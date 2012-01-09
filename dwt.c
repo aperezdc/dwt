@@ -177,6 +177,7 @@ main (int argc, char *argv[])
     gtk_init (&argc, &argv);
 
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_icon_name (GTK_WINDOW (window), "terminal");
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
 
     vtterm = vte_terminal_new ();
