@@ -11,13 +11,16 @@ CPPFLAGS    += -DG_DISABLE_DEPRECATED   \
                -DPREFIX=\"$(PREFIX)\"
 PKG_MODULES := vte-2.90
 PKG_CFLAGS  := $(shell pkg-config --cflags $(PKG_MODULES))
-PKG_LDFLAGS := $(shell pkg-config --libs   $(PKG_MODULES))
+PKG_LDLIBS  := $(shell pkg-config --libs   $(PKG_MODULES))
 
 all: dwt dwt.1
 
 dwt: CFLAGS += $(PKG_CFLAGS)
-dwt: LDFLAGS += $(PKG_LDFLAGS)
+dwt: LDLIBS += $(PKG_LDLIBS)
 dwt: dwt.o
+
+%: %.o
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 dwt.1: dwt.rst
 	rst2man $< $@
