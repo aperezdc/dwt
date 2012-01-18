@@ -3,6 +3,7 @@
 # Adrian Perez, 2012-01-05 19:08
 #
 
+PREFIX      ?= /usr/local
 CFLAGS      += -Wall
 CPPFLAGS    += -DG_DISABLE_DEPRECATED   \
                -DGTK_DISABLE_DEPRECATED \
@@ -20,5 +21,9 @@ dwt: dwt.o
 clean:
 	$(RM) dwt dwt.o
 
-.PHONY: clean
+install: all
+	install -m 755 -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 -t $(DESTDIR)$(PREFIX)/bin dwt
+
+.PHONY: clean install
 
