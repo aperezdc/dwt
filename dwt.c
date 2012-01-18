@@ -93,10 +93,10 @@ configure_term_widget (VteTerminal *vtterm)
     vte_terminal_set_scrollback_lines    (vtterm, 4096);
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
     vte_terminal_set_allow_bold          (vtterm, TRUE);
+    vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
     vte_terminal_set_visible_bell        (vtterm, FALSE);
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
-    vte_terminal_set_scroll_on_keystroke (vtterm, FALSE);
     vte_terminal_set_font_from_string    (vtterm, opt_font);
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
