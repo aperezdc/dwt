@@ -119,12 +119,18 @@ static const GdkColor color_palette[] =
 static const GdkColor color_bg = { 0, 0x0000, 0x0000, 0x0000 };
 static const GdkColor color_fg = { 0, 0xdddd, 0xdddd, 0xdddd };
 
+/* Regexp used to match URIs and allow clicking them */
+static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
+
 
 static void
 configure_term_widget (VteTerminal *vtterm)
 {
+    gint match_tag;
+
     g_assert (vtterm);
     g_assert (opt_font);
+
     vte_terminal_set_scrollback_lines    (vtterm, 4096);
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
     vte_terminal_set_allow_bold          (vtterm, TRUE);
@@ -140,6 +146,15 @@ configure_term_widget (VteTerminal *vtterm)
                                           &color_bg,
                                           color_palette,
                                           LENGTH_OF (color_palette));
+
+    match_tag = vte_terminal_match_add_gregex (vtterm,
+                                               g_regex_new (uri_regexp,
+                                                            G_REGEX_CASELESS,
+                                                            G_REGEX_MATCH_NOTEMPTY,
+                                                            NULL),
+                                               0);
+
+    vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
 }
 
 
