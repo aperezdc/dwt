@@ -122,6 +122,9 @@ static const GdkColor color_fg = { 0, 0xdddd, 0xdddd, 0xdddd };
 /* Regexp used to match URIs and allow clicking them */
 static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
 
+/* Characters considered part of a word. Simplifies double-click selection */
+static const gchar word_chars[] = "-A-Za-z0-9,./?%&#@_~";
+
 
 static void
 configure_term_widget (VteTerminal *vtterm)
@@ -139,6 +142,7 @@ configure_term_widget (VteTerminal *vtterm)
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
     vte_terminal_set_font_from_string    (vtterm, opt_font);
+    vte_terminal_set_word_chars          (vtterm, word_chars);
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
     vte_terminal_set_colors              (vtterm,
