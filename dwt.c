@@ -6,12 +6,31 @@
  */
 
 #include <gtk/gtk.h>
+
+enum AccelAction
+{
+    AccelNoAction = 0,
+    AccelPaste,
+    AccelCopy,
+    AccelTerm,
+};
+
+static struct
+{
+    enum AccelAction action;
+    guint            accel_key;
+    GdkModifierType  accel_mod;
+} global_accels [] = {
+#include "dwt-accels.h"
+};
+
 #include <vte/vte.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <pwd.h>
 
 #define LENGTH_OF(a) (sizeof (a) / sizeof (a[0]))
+#define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
 
 static const gchar *opt_workdir = ".";
@@ -54,6 +73,22 @@ static const GOptionEntry option_entries[] =
         NULL
     },
 };
+
+
+static gint
+accel_index (enum AccelAction action)
+{
+    guint i;
+
+    for (i = 0; i < LENGTH_OF (global_accels); i++) {
+        if (global_accels[i].action == action) {
+            return i;
+        }
+    }
+
+    /* Not found */
+    return -1;
+}
 
 
 /*
@@ -136,6 +171,44 @@ guess_shell (void)
 }
 
 
+static gboolean
+handle_key_press (GtkWidget *widget,
+                  GdkEventKey *event,
+                  gpointer userdata)
+{
+    g_assert (widget);
+    g_assert (event);
+    g_assert (userdata);
+    g_assert (VTE_IS_TERMINAL (userdata));
+
+    if (event->type != GDK_KEY_PRESS) {
+        return FALSE;
+    }
+
+#define HANDLE_ACCEL(_action, _expr) \
+    do { \
+        static gint idx = -2; \
+        if (idx == -2) idx = accel_index (_action); \
+        if (idx >= 0 && event->keyval == global_accels[idx].accel_key && \
+            CHECK_FLAGS (event->state, global_accels[idx].accel_mod)) { \
+            _expr; \
+            return TRUE; \
+        } \
+    } while (0)
+
+    HANDLE_ACCEL (AccelPaste,
+                  vte_terminal_paste_clipboard (VTE_TERMINAL (userdata)));
+
+    HANDLE_ACCEL (AccelCopy,
+                  vte_terminal_copy_clipboard (VTE_TERMINAL (userdata));
+                  vte_terminal_copy_primary (VTE_TERMINAL (userdata)));
+
+#undef HANDLE_ACCEL
+
+    return FALSE;
+}
+
+
 int
 main (int argc, char *argv[])
 {
@@ -193,6 +266,13 @@ main (int argc, char *argv[])
     g_signal_connect (G_OBJECT (vtterm), "child-exited",
                       G_CALLBACK (gtk_main_quit),
                       NULL);
+
+    /*
+     * Handle keyboard shortcuts.
+     */
+    g_signal_connect (G_OBJECT (window), "key-press-event",
+                      G_CALLBACK (handle_key_press),
+                      vtterm);
 
     /*
      * Transform terminal beeps in _URGENT hints for the window.
