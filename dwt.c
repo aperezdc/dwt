@@ -224,6 +224,84 @@ handle_key_press (GtkWidget *widget,
 }
 
 
+static const gchar*
+guess_browser (void)
+{
+    static gchar *browser = NULL;
+
+    if (!browser) {
+        if (g_getenv ("BROWSER")) {
+            browser = g_strdup (g_getenv ("BROWSER"));
+        }
+        else {
+            browser = g_find_program_in_path ("xdg-open");
+            if (!browser) {
+                browser = g_find_program_in_path ("gnome-open");
+                if (!browser) {
+                    browser = g_find_program_in_path ("exo-open");
+                    if (!browser) {
+                        browser = g_find_program_in_path ("firefox");
+                    }
+                }
+            }
+        }
+    }
+
+    return browser;
+}
+
+
+static gboolean
+handle_mouse_press (VteTerminal *vtterm,
+                    GdkEventButton *event,
+                    gpointer userdata)
+{
+    gchar *match = NULL;
+    glong col, row;
+    gint match_tag;
+
+    g_assert (vtterm);
+    g_assert (event);
+
+    if (event->type != GDK_BUTTON_PRESS)
+        return FALSE;
+
+    row = (glong) (event->y) / vte_terminal_get_char_height (vtterm);
+    col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
+
+    if ((match = vte_terminal_match_check (vtterm, col, row, &match_tag)) != NULL) {
+        if (event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
+            GError *error = NULL;
+            gchar *cmdline[] = {
+                (gchar*) guess_browser (),
+                match,
+                NULL
+            };
+
+            if (!cmdline[0]) {
+                g_printerr ("Could not determine browser to use.\n");
+            }
+            else if (!g_spawn_async (NULL,
+                                     cmdline,
+                                     NULL,
+                                     G_SPAWN_SEARCH_PATH,
+                                     NULL,
+                                     NULL,
+                                     NULL,
+                                     &error))
+            {
+                g_printerr ("Could not launch browser: %s", error->message);
+                g_error_free (error);
+            }
+        }
+        g_free (match);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+
 int
 main (int argc, char *argv[])
 {
@@ -288,6 +366,13 @@ main (int argc, char *argv[])
     g_signal_connect (G_OBJECT (window), "key-press-event",
                       G_CALLBACK (handle_key_press),
                       vtterm);
+
+    /*
+     * Handles clicks un URIs
+     */
+    g_signal_connect (G_OBJECT (vtterm), "button-press-event",
+                      G_CALLBACK (handle_mouse_press),
+                      NULL);
 
     /*
      * Transform terminal beeps in _URGENT hints for the window.
