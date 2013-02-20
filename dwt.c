@@ -33,10 +33,11 @@ static struct
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
 
-static const gchar *opt_workdir = ".";
-static const gchar *opt_command = NULL;
-static const gchar *opt_title   = "dwt";
-static const gchar *opt_font    = "terminus 11";
+static const gchar   *opt_workdir = ".";
+static const gchar   *opt_command = NULL;
+static const gchar   *opt_title   = "dwt";
+static const gchar   *opt_font    = "terminus 11";
+static       gboolean opt_bold    = FALSE;
 
 
 static const GOptionEntry option_entries[] =
@@ -69,6 +70,13 @@ static const GOptionEntry option_entries[] =
         &opt_title,
         "Initial terminal window title",
         "TITLE",
+    }, {
+        "bold", 'b',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_NONE,
+        &opt_bold,
+        "Allow using bold fonts",
+        NULL,
     }, {
         NULL
     },
@@ -136,12 +144,12 @@ configure_term_widget (VteTerminal *vtterm)
 
     vte_terminal_set_scrollback_lines    (vtterm, 4096);
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
-    vte_terminal_set_allow_bold          (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
     vte_terminal_set_visible_bell        (vtterm, FALSE);
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
     vte_terminal_set_font_from_string    (vtterm, opt_font);
+    vte_terminal_set_allow_bold          (vtterm, opt_bold);
     vte_terminal_set_word_chars          (vtterm, word_chars);
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
