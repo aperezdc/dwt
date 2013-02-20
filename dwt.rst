@@ -48,6 +48,10 @@ Command line options:
               Sets the font used by the terminal emulator. The font name is
               interpreted using FontConfig. The default is "terminus 11".
 
+-s BYTES, --scrollback=BYTES
+              Sets the size of the scrollback buffer. The default is 1024
+              bytes (1 kB).
+
 -b, --bold    Allow usage of bold font variants.
 
 -h, --help    Show a summary of available options.
