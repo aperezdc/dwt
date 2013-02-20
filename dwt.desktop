@@ -1,0 +1,13 @@
+[Desktop Entry]
+Hidden=false
+Name=dwt
+Exec=dwt
+TryExec=dwt
+Icon=terminal
+Comment=Use the command line
+Type=Application
+NoDisplay=false
+StartupNotify=true
+StartupWMClass=Dwt
+Categories=GNOME;GTK;Utility;TerminalEmulator;
+Terminal=false

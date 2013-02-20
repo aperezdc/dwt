@@ -13,7 +13,7 @@ PKG_MODULES := vte-2.90
 PKG_CFLAGS  := $(shell pkg-config --cflags $(PKG_MODULES))
 PKG_LDLIBS  := $(shell pkg-config --libs   $(PKG_MODULES))
 
-all: dwt dwt.1
+all: dwt dwt.1 dwt.desktop
 
 dwt: CFLAGS += $(PKG_CFLAGS)
 dwt: LDLIBS += $(PKG_LDLIBS)
@@ -33,6 +33,8 @@ install: all
 	install -m 755 -t $(DESTDIR)$(PREFIX)/bin dwt
 	install -m 755 -d $(DESTDIR)$(PREFIX)/man/man1
 	install -m 644 -t $(DESTDIR)$(PREFIX)/man/man1 dwt.1
+	install -m 755 -d $(DESTDIR)$(PREFIX)/share/applications
+	install -m 644 -t $(DESTDIR)$(PREFIX)/share/applications dwt.desktop
 
 ifeq ($(origin TAG),command line)
 VERSION := $(TAG)
