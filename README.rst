@@ -18,7 +18,7 @@ companion for tiling window managers like DWM_ (or my own XDWM_ fork).
 
   - Non-blinking cursor.
 
-  - 4K scrollback buffer, but no scrollbar displayed, to save screen real
+  - Scrollback buffer, but no scrollbar displayed, to save screen real
     estate. Use ``Shift-PageUp`` and ``Shift-PageDown`` to scroll.
 
   - Mouse cursor auto-hide.
