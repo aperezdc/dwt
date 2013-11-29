@@ -18,6 +18,7 @@ all: dwt dwt.1 dwt.desktop
 dwt: CFLAGS += $(PKG_CFLAGS)
 dwt: LDLIBS += $(PKG_LDLIBS)
 dwt: dwt.o
+dwt.o: dwt-config.h
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@

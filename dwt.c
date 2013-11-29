@@ -1,6 +1,6 @@
 /*
  * dwt.c
- * Copyright (C) 2012 Adrian Perez <aperez@igalia.com>
+ * Copyright (C) 2012-2013 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
@@ -21,8 +21,12 @@ static struct
     guint            accel_key;
     GdkModifierType  accel_mod;
 } global_accels [] = {
-#include "dwt-accels.h"
+#include "dwt-config.h"
 };
+
+#ifndef DWT_DEFAULT_FONT
+#define DWT_DEFAULT_FONT "monospace 11"
+#endif /* !DWT_DEFAULT_FONT */
 
 #include <vte/vte.h>
 #include <stdlib.h>
@@ -36,7 +40,7 @@ static struct
 static const gchar   *opt_workdir = ".";
 static const gchar   *opt_command = NULL;
 static const gchar   *opt_title   = "dwt";
-static const gchar   *opt_font    = "terminus 11";
+static const gchar   *opt_font    = DWT_DEFAULT_FONT;
 static       gboolean opt_bold    = FALSE;
 static       gint     opt_scroll  = 1024;
 

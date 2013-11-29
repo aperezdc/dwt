@@ -23,9 +23,9 @@ companion for tiling window managers like DWM_ (or my own XDWM_ fork).
 
   - Mouse cursor auto-hide.
 
-* Keyboard accelerators configurable at build time:
+* Keyboard accelerators and default font configurable at build time:
 
-  - Just edit ``dwt-accels.h`` before building.
+  - Just edit ``dwt-config.h`` before building.
 
 * XTerm-style configurable window title.
 
