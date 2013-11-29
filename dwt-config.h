@@ -9,7 +9,14 @@
  * Default font name (uses fontconfig)
  */
 
+
 /* #define DWT_DEFAULT_FONT "monospace 11" */
+
+/*
+ * Cursor colors.
+ */
+
+/* #define DWT_CURSOR_COLOR "#00cc00" */
 
 
 /*

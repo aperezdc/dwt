@@ -28,6 +28,10 @@ static struct
 #define DWT_DEFAULT_FONT "monospace 11"
 #endif /* !DWT_DEFAULT_FONT */
 
+#ifndef DWT_CURSOR_COLOR
+#define DWT_CURSOR_COLOR "#00cc00"
+#endif /* !DWT_CURSOR_COLOR */
+
 #include <vte/vte.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -43,6 +47,9 @@ static const gchar   *opt_title   = "dwt";
 static const gchar   *opt_font    = DWT_DEFAULT_FONT;
 static       gboolean opt_bold    = FALSE;
 static       gint     opt_scroll  = 1024;
+
+
+static const gchar osc_cursor[] = "]12;" DWT_CURSOR_COLOR "";
 
 
 static const GOptionEntry option_entries[] =
@@ -179,6 +186,10 @@ configure_term_widget (VteTerminal *vtterm)
                                                0);
 
     vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
+
+    vte_terminal_feed (vtterm,
+                       osc_cursor,
+                       sizeof(osc_cursor));
 }
 
 
