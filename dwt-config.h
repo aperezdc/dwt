@@ -16,7 +16,8 @@
  * Cursor colors.
  */
 
-/* #define DWT_CURSOR_COLOR "#00cc00" */
+/* #define DWT_CURSOR_COLOR_FOCUSED   "#00cc00" */
+/* #define DWT_CURSOR_COLOR_UNFOCUSED "#666666" */
 
 
 /*
@@ -28,7 +29,7 @@
  *   Paste    - paste the X11 clipboard in the terminal
  */
 
-{ AccelCopy,   GDK_KEY_C, GDK_CONTROL_MASK },
-{ AccelPaste,  GDK_KEY_P, GDK_CONTROL_MASK },
-{ AccelTerm,   GDK_KEY_N, GDK_CONTROL_MASK },
+{ AccelCopy,   GDK_KEY_C, GDK_CONTROL_MASK | GDK_SHIFT_MASK },
+{ AccelPaste,  GDK_KEY_P, GDK_CONTROL_MASK | GDK_SHIFT_MASK },
+{ AccelTerm,   GDK_KEY_N, GDK_CONTROL_MASK | GDK_SHIFT_MASK },
 

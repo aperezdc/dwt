@@ -28,9 +28,13 @@ static struct
 #define DWT_DEFAULT_FONT "monospace 11"
 #endif /* !DWT_DEFAULT_FONT */
 
-#ifndef DWT_CURSOR_COLOR
-#define DWT_CURSOR_COLOR "#00cc00"
-#endif /* !DWT_CURSOR_COLOR */
+#ifndef DWT_CURSOR_COLOR_FOCUSED
+#define DWT_CURSOR_COLOR_FOCUSED "#00cc00"
+#endif /* !DWT_CURSOR_COLOR_FOCUSED */
+
+#ifndef DWT_CURSOR_COLOR_UNFOCUSED
+#define DWT_CURSOR_COLOR_UNFOCUSED "666666"
+#endif /* !DWT_CURSOR_COLOR_UNFOCUSED */
 
 #include <vte/vte.h>
 #include <stdlib.h>
@@ -43,13 +47,14 @@ static struct
 
 static const gchar   *opt_workdir = ".";
 static const gchar   *opt_command = NULL;
-static const gchar   *opt_title   = "dwt";
-static const gchar   *opt_font    = DWT_DEFAULT_FONT;
+static       gchar   *opt_title   = "dwt";
+static       gchar   *opt_font    = DWT_DEFAULT_FONT;
 static       gboolean opt_bold    = FALSE;
 static       gint     opt_scroll  = 1024;
 
 
-static const gchar osc_cursor[] = "]12;" DWT_CURSOR_COLOR "";
+static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
+static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
 
 static const GOptionEntry option_entries[] =
@@ -188,8 +193,8 @@ configure_term_widget (VteTerminal *vtterm)
     vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
 
     vte_terminal_feed (vtterm,
-                       osc_cursor,
-                       sizeof(osc_cursor));
+                       osc_cursor_focused,
+                       sizeof(osc_cursor_focused));
 }
 
 
@@ -221,19 +226,48 @@ guess_shell (void)
 }
 
 
-static gboolean
-handle_key_press (GtkWidget *widget,
-                  GdkEventKey *event,
-                  gpointer userdata)
+static void
+spawn_terminal (VteTerminal *vtterm)
 {
-    g_assert (widget);
-    g_assert (event);
-    g_assert (userdata);
-    g_assert (VTE_IS_TERMINAL (userdata));
+    const gchar *curdir_uri = vte_terminal_get_current_directory_uri(vtterm);
+    const gchar *curdir_path = NULL;
 
-    if (event->type != GDK_KEY_PRESS) {
-        return FALSE;
-    }
+    gchar *argv[] = {
+        "dwt",
+        "-t", opt_title,
+        "-f", opt_font,
+        opt_bold ? "-b" : NULL,
+        NULL
+    };
+
+    /*
+     * TODO: Use entries in /proc to get current directory of the child
+     * shell and our own location by reading /proc/self/exe
+     */
+
+    if (curdir_uri && g_str_has_prefix (curdir_uri, "file://"))
+        curdir_path = curdir_uri + 7;
+
+    GPid pid;
+    GError *error = NULL;
+    g_spawn_async (curdir_path,
+                   argv,
+                   NULL,
+                   G_SPAWN_SEARCH_PATH,
+                   NULL,
+                   NULL,
+                   &pid,
+                   &error);
+}
+
+
+static gboolean
+handle_key_press (GtkWidget   *widget,
+                  GdkEventKey *event,
+                  gpointer     userdata)
+{
+    g_assert (VTE_IS_TERMINAL (widget));
+    g_assert (event);
 
 #define HANDLE_ACCEL(_action, _expr) \
     do { \
@@ -247,12 +281,14 @@ handle_key_press (GtkWidget *widget,
     } while (0)
 
     HANDLE_ACCEL (AccelPaste,
-                  vte_terminal_paste_clipboard (VTE_TERMINAL (userdata)));
+                  vte_terminal_paste_clipboard (VTE_TERMINAL (widget)));
 
     HANDLE_ACCEL (AccelCopy,
-                  vte_terminal_copy_clipboard (VTE_TERMINAL (userdata));
-                  vte_terminal_copy_primary (VTE_TERMINAL (userdata)));
+                  vte_terminal_copy_clipboard (VTE_TERMINAL (widget));
+                  vte_terminal_copy_primary (VTE_TERMINAL (widget)));
 
+    HANDLE_ACCEL (AccelTerm,
+                  spawn_terminal (VTE_TERMINAL (widget)));
 #undef HANDLE_ACCEL
 
     return FALSE;
@@ -398,9 +434,9 @@ main (int argc, char *argv[])
     /*
      * Handle keyboard shortcuts.
      */
-    g_signal_connect (G_OBJECT (window), "key-press-event",
+    g_signal_connect (G_OBJECT (vtterm), "key-press-event",
                       G_CALLBACK (handle_key_press),
-                      vtterm);
+                      NULL);
 
     /*
      * Handles clicks un URIs
