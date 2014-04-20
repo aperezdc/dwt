@@ -44,6 +44,12 @@ static struct
 #define LENGTH_OF(a) (sizeof (a) / sizeof (a[0]))
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
+#if DWT_USE_HEADER_BAR
+# ifndef DWT_HEADER_BAR_HIDE
+#  define DWT_HEADER_BAR_HIDE TRUE
+# endif /* !DWT_USE_HEADER_BAR */
+static       gboolean opt_hidebar = FALSE;
+#endif /* DWT_USE_HEADER_BAR */
 
 static const gchar   *opt_workdir = ".";
 static const gchar   *opt_command = NULL;
@@ -101,9 +107,26 @@ static const GOptionEntry option_entries[] =
         &opt_bold,
         "Allow using bold fonts",
         NULL,
-    }, {
-        NULL
     },
+#if DWT_USE_HEADER_BAR
+    {
+#if !DWT_HEADER_BAR_HIDE
+        "no-"
+#endif /* !DWT_HEADER_BAR_HIDE */
+        "title-on-maximize", 'H',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_NONE,
+        &opt_hidebar,
+#if DWT_HEADER_BAR_HIDE
+        "Show"
+#else /*! DWT_HEADER_BAR_HIDE */
+        "Hide"
+#endif /* DWT_HEADER_BAR_HIDE */
+        " title bar when window is maximized.",
+        NULL,
+    },
+#endif /* DWT_USE_HEADER_BAR */
+    { NULL }
 };
 
 
@@ -373,6 +396,95 @@ handle_mouse_press (VteTerminal *vtterm,
 }
 
 
+#if DWT_USE_HEADER_BAR
+static void
+set_header_bar_title (VteTerminal *vtterm, gpointer userdata)
+{
+    gtk_label_set_text (GTK_LABEL (userdata),
+                        vte_terminal_get_window_title (vtterm));
+}
+
+
+static gboolean
+header_bar_close_released (GtkWidget *widget,
+                           GdkEvent  *event,
+                           gpointer   userdata)
+{
+    gtk_main_quit ();
+    return TRUE;
+}
+
+
+static void
+toggle_window_maximized (GObject    *object,
+                         GParamSpec *pspec,
+                         gpointer    userdata)
+{
+    GtkWidget *header = GTK_WIDGET (userdata);
+
+    if (gtk_window_is_maximized (GTK_WINDOW (object))) {
+        gtk_widget_hide (header);
+    }
+    else {
+        gtk_widget_show (header);
+    }
+}
+
+static void
+setup_header_bar (GtkWidget *window, GtkWidget *vtterm)
+{
+    GtkWidget *header = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
+    GtkWidget *widget = gtk_label_new (opt_title);
+    GtkWidget *bin = gtk_alignment_new (0.5, 0.5, 1, 1);
+
+    gtk_alignment_set_padding (GTK_ALIGNMENT (bin), 3, 4, 12, 12);
+    gtk_container_add (GTK_CONTAINER (bin), widget);
+
+    /*
+     * Pick the title changes and propagate them to the title label.
+     */
+    g_signal_connect (G_OBJECT (vtterm), "window-title-changed",
+                      G_CALLBACK (set_header_bar_title),
+                      (gpointer) widget);
+
+    gtk_box_pack_start (GTK_BOX (header), bin, TRUE, TRUE, 0);
+
+    /* Close button */
+    widget = gtk_image_new_from_icon_name ("window-close-symbolic",
+                                           GTK_ICON_SIZE_BUTTON);
+    gtk_widget_add_events (widget,
+                           GDK_BUTTON_PRESS_MASK |
+                           GDK_BUTTON_RELEASE_MASK |
+                           GDK_ENTER_NOTIFY_MASK |
+                           GDK_LEAVE_NOTIFY_MASK);
+    gtk_widget_set_margin_start (widget, 5);
+    gtk_widget_set_margin_end (widget, 5);
+
+    bin = gtk_event_box_new ();
+    gtk_container_add (GTK_CONTAINER (bin), widget);
+    g_signal_connect (G_OBJECT (bin), "button-release-event",
+                      G_CALLBACK (header_bar_close_released), NULL);
+    gtk_box_pack_end (GTK_BOX (header), bin, FALSE, FALSE, 0);
+
+    gtk_window_set_titlebar (GTK_WINDOW (window), header);
+
+    /*
+     * Hide the header bar when the window is maximized.
+     */
+#if DWT_HEADER_BAR_HIDE
+    if (!opt_hidebar)
+#else /* !DWT_HEADER_BAR_HIDE */
+    if (opt_hidebar)
+#endif /* DWT_HEADER_BAR_HIDE */
+    {
+        g_signal_connect (G_OBJECT (window), "notify::is-maximized",
+                          G_CALLBACK (toggle_window_maximized),
+                          header);
+    }
+}
+#endif /* DWT_USE_HEADER_BAR */
+
+
 int
 main (int argc, char *argv[])
 {
@@ -416,6 +528,7 @@ main (int argc, char *argv[])
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     gtk_window_set_icon_name (GTK_WINDOW (window), "terminal");
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
+    gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
 
     vtterm = vte_terminal_new ();
     configure_term_widget (VTE_TERMINAL (vtterm));
@@ -460,6 +573,10 @@ main (int argc, char *argv[])
                       (gpointer) window);
 
     g_assert (opt_workdir);
+
+#if DWT_USE_HEADER_BAR
+    setup_header_bar (window, vtterm);
+#endif /* DWT_USE_HEADER_BAR */
 
     if (!vte_terminal_fork_command_full (VTE_TERMINAL (vtterm),
                                          VTE_PTY_DEFAULT,

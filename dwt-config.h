@@ -19,6 +19,13 @@
 /* #define DWT_CURSOR_COLOR_FOCUSED   "#00cc00" */
 /* #define DWT_CURSOR_COLOR_UNFOCUSED "#666666" */
 
+/*
+ * Whether to use a GtkHeaderBar for window titles. By default the
+ * header bar will be hidden for maximized windows.
+ * Note that this feature is experimental.
+ */
+#define DWT_USE_HEADER_BAR  0
+#define DWT_HEADER_BAR_HIDE TRUE
 
 /*
  * Global dwt accelerators (key bindings) are defined as keystroke-action
