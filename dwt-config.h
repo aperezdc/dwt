@@ -5,12 +5,13 @@
  * Distributed under terms of the MIT license.
  */
 
+
 /*
  * Default font name (uses fontconfig)
  */
 
-
 /* #define DWT_DEFAULT_FONT "monospace 11" */
+
 
 /*
  * Cursor colors.
@@ -19,13 +20,16 @@
 /* #define DWT_CURSOR_COLOR_FOCUSED   "#00cc00" */
 /* #define DWT_CURSOR_COLOR_UNFOCUSED "#666666" */
 
+
 /*
  * Whether to use a GtkHeaderBar for window titles. By default the
  * header bar will be hidden for maximized windows.
- * Note that this feature is experimental.
+ *
+ * Note that this feature is experimental and requires GTK+ 3.8
  */
-#define DWT_USE_HEADER_BAR  0
+#define DWT_USE_HEADER_BAR  TRUE
 #define DWT_HEADER_BAR_HIDE TRUE
+
 
 /*
  * Global dwt accelerators (key bindings) are defined as keystroke-action
