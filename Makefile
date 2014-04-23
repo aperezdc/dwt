@@ -4,7 +4,7 @@
 #
 
 PREFIX      ?= /usr/local
-CFLAGS      += -Wall
+CFLAGS      += -Wall -std=gnu99
 CPPFLAGS    += -DG_DISABLE_DEPRECATED   \
                -DGTK_DISABLE_DEPRECATED \
                -DVTE_DISABLE_DEPRECATED \
