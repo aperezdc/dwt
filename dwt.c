@@ -13,6 +13,9 @@ enum AccelAction
     AccelPaste,
     AccelCopy,
     AccelTerm,
+    AccelFontNormal,
+    AccelFontBigger,
+    AccelFontSmaller,
 };
 
 static struct
@@ -236,6 +239,67 @@ set_title (VteTerminal *vtterm, gpointer userdata)
 }
 
 
+/*
+ * FIXME: Somehow an empty (black) padding always remains even after setting
+ * the sizing hints.
+ */
+static void
+set_window_sizing_increment (VteTerminal *vtterm, GtkWindow *window)
+{
+    GdkGeometry geometry;
+    geometry.height_inc = vte_terminal_get_char_height (vtterm);
+    geometry.width_inc = vte_terminal_get_char_width (vtterm);
+
+    GtkBorder padding;
+    gtk_style_context_get_padding (gtk_widget_get_style_context (GTK_WIDGET (vtterm)),
+                                   gtk_widget_get_state_flags (GTK_WIDGET (vtterm)),
+                                   &padding);
+    geometry.base_height = padding.top + padding.bottom;
+    geometry.base_width = padding.left + padding.right;
+
+    geometry.min_height = geometry.base_height + 3 * geometry.height_inc;
+    geometry.min_width = geometry.base_width + 10 * geometry.width_inc;
+
+    gtk_window_set_geometry_hints (window,
+                                   GTK_WIDGET (window),
+                                   &geometry,
+                                   GDK_HINT_MIN_SIZE |
+                                   GDK_HINT_BASE_SIZE |
+                                   GDK_HINT_RESIZE_INC);
+}
+
+
+static void
+font_size (VteTerminal *vtterm, GtkWindow *window, gint modifier)
+{
+    const PangoFontDescription *fontd = vte_terminal_get_font (vtterm);
+    gint old_size = pango_font_description_get_size (fontd);
+    PangoFontDescription *new_fontd;
+    gint new_size;
+
+    switch (modifier) {
+      case 0:
+        vte_terminal_set_font_from_string (vtterm, opt_font);
+        break;
+
+      case 1:
+      case -1:
+        new_size = old_size + modifier * PANGO_SCALE;
+        new_fontd = pango_font_description_copy_static (fontd);
+        pango_font_description_set_size (new_fontd, new_size);
+        vte_terminal_set_font (vtterm, new_fontd);
+        pango_font_description_free (new_fontd);
+        break;
+
+      default:
+        g_printerr ("%s: invalid modifier '%i'", __func__, modifier);
+    }
+
+    if (new_size != old_size)
+        set_window_sizing_increment (vtterm, window);
+}
+
+
 static char*
 guess_shell (void)
 {
@@ -290,6 +354,7 @@ handle_key_press (GtkWidget   *widget,
                   gpointer     userdata)
 {
     g_assert (VTE_IS_TERMINAL (widget));
+    g_assert (GTK_IS_WINDOW (userdata));
     g_assert (event);
 
 #define HANDLE_ACCEL(_action, _expr) \
@@ -312,6 +377,13 @@ handle_key_press (GtkWidget   *widget,
 
     HANDLE_ACCEL (AccelTerm,
                   spawn_terminal (VTE_TERMINAL (widget)));
+
+    HANDLE_ACCEL (AccelFontNormal,
+                  font_size (VTE_TERMINAL (widget), GTK_WINDOW (userdata),  0));
+    HANDLE_ACCEL (AccelFontBigger,
+                  font_size (VTE_TERMINAL (widget), GTK_WINDOW (userdata), +1));
+    HANDLE_ACCEL (AccelFontSmaller,
+                  font_size (VTE_TERMINAL (widget), GTK_WINDOW (userdata), -1));
 #undef HANDLE_ACCEL
 
     return FALSE;
@@ -528,10 +600,12 @@ main (int argc, char *argv[])
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     gtk_window_set_icon_name (GTK_WINDOW (window), "terminal");
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
+    gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
 
     vtterm = vte_terminal_new ();
     configure_term_widget (VTE_TERMINAL (vtterm));
+    set_window_sizing_increment (VTE_TERMINAL (vtterm), GTK_WINDOW (window));
 
     /*
      * Exit when the child process is exited, or when the window is closed.
@@ -549,7 +623,7 @@ main (int argc, char *argv[])
      */
     g_signal_connect (G_OBJECT (vtterm), "key-press-event",
                       G_CALLBACK (handle_key_press),
-                      NULL);
+                      window);
 
     /*
      * Handles clicks un URIs
