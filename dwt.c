@@ -74,6 +74,7 @@ static       gboolean opt_bold    = FALSE;
 static       gint     opt_scroll  = 1024;
 
 
+static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
 
@@ -669,6 +670,22 @@ setup_header_bar (GtkWidget *window, GtkWidget *vtterm)
 #endif /* DWT_USE_HEADER_BAR */
 
 
+static void
+window_is_active_notified (GObject    *object,
+                           GParamSpec *pspec,
+                           gpointer    userdata)
+{
+    if (gtk_window_is_active (GTK_WINDOW (object))) {
+        vte_terminal_feed (VTE_TERMINAL (userdata),
+                           osc_cursor_focused,
+                           sizeof (osc_cursor_focused));
+    } else {
+        vte_terminal_feed (VTE_TERMINAL (userdata),
+                           osc_cursor_unfocused,
+                           sizeof (osc_cursor_unfocused));
+    }
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -756,6 +773,13 @@ main (int argc, char *argv[])
     g_signal_connect (G_OBJECT (vtterm), "window-title-changed",
                       G_CALLBACK (set_title),
                       (gpointer) window);
+
+    /*
+     * Change the cursor color when window is made (in)active.
+     */
+    g_signal_connect (G_OBJECT (window), "notify::is-active",
+                      G_CALLBACK (window_is_active_notified),
+                      vtterm);
 
     g_assert (opt_workdir);
 
