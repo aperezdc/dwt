@@ -27,8 +27,13 @@
  *
  * Note that this feature is experimental and requires GTK+ 3.10
  */
+#ifndef DWT_USE_HEADER_BAR
 #define DWT_USE_HEADER_BAR  FALSE
+#endif /* !DWT_USE_HEADER_BAR */
+
+#ifndef DWT_HEADER_BAR_HIDE
 #define DWT_HEADER_BAR_HIDE TRUE
+#endif /* DWT_HEADER_BAR_HIDE */
 
 
 /*
@@ -36,7 +41,9 @@
  *
  * Note that this feature is experimental and requires GTK+ 3.12
  */
+#ifndef DWT_USE_POPOVER
 #define DWT_USE_POPOVER FALSE
+#endif /* !DWT_USE_POPOVER */
 
 
 /*
