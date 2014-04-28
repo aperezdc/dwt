@@ -238,7 +238,13 @@ configure_term_widget (VteTerminal *vtterm)
 static void
 set_urgent (VteTerminal *vtterm, gpointer userdata)
 {
-    gtk_window_set_urgency_hint (GTK_WINDOW (userdata), TRUE);
+    /*
+     * Only set the _URGENT hint when the window is not focused. If the
+     * window is focused, the user is likely to notice what is happening
+     * without the need to call for attention.
+     */
+    if (!gtk_window_is_active (GTK_WINDOW (userdata)))
+        gtk_window_set_urgency_hint (GTK_WINDOW (userdata), TRUE);
 }
 
 
@@ -679,6 +685,8 @@ window_is_active_notified (GObject    *object,
         vte_terminal_feed (VTE_TERMINAL (userdata),
                            osc_cursor_focused,
                            sizeof (osc_cursor_focused));
+        /* Clear the _URGENT hint when the window gets activated. */
+        gtk_window_set_urgency_hint (GTK_WINDOW (object), FALSE);
     } else {
         vte_terminal_feed (VTE_TERMINAL (userdata),
                            osc_cursor_unfocused,
