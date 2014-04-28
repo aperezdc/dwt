@@ -25,9 +25,9 @@
  * Whether to use a GtkHeaderBar for window titles. By default the
  * header bar will be hidden for maximized windows.
  *
- * Note that this feature is experimental and requires GTK+ 3.8
+ * Note that this feature is experimental and requires GTK+ 3.10
  */
-#define DWT_USE_HEADER_BAR  TRUE
+#define DWT_USE_HEADER_BAR  FALSE
 #define DWT_HEADER_BAR_HIDE TRUE
 
 
