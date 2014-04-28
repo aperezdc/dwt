@@ -526,7 +526,6 @@ setup_popover (GtkWidget *vtterm)
                       G_CALLBACK (popover_copy_url_clicked), vtterm);
     gtk_container_add (GTK_CONTAINER (box), item);
 
-    popover_open_url_button = item;
     gtk_container_add (GTK_CONTAINER (popover), box);
     return popover;
 }
