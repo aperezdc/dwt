@@ -7,26 +7,6 @@
 
 #include <gtk/gtk.h>
 
-enum AccelAction
-{
-    AccelNoAction = 0,
-    AccelPaste,
-    AccelCopy,
-    AccelTerm,
-    AccelFontNormal,
-    AccelFontBigger,
-    AccelFontSmaller,
-};
-
-static struct
-{
-    enum AccelAction action;
-    guint            accel_key;
-    GdkModifierType  accel_mod;
-} global_accels [] = {
-#include "dwt-config.h"
-};
-
 #ifndef DWT_DEFAULT_FONT
 #define DWT_DEFAULT_FONT "monospace 11"
 #endif /* !DWT_DEFAULT_FONT */
@@ -56,7 +36,6 @@ static struct
 #include <sys/types.h>
 #include <pwd.h>
 
-#define LENGTH_OF(a) (sizeof (a) / sizeof (a[0]))
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
 #if DWT_USE_HEADER_BAR
@@ -76,12 +55,24 @@ static       gint     opt_scroll  = 1024;
 
 static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
-
+static const gchar application_id[]       = "org.perezdecastro.dwt";
 
 #if DWT_USE_POPOVER
-/* Last matched text piece */
+/* Last matched text piece. */
 static gchar *last_match_text = NULL;
 #endif /* DWT_USE_POPOVER */
+
+typedef struct {
+    const gchar *name;
+    const gchar *accel;
+    void (*callback) (GSimpleAction*, GVariant*, gpointer);
+} ActionReg;
+
+
+/* Forward declarations. */
+static GtkWidget*
+create_new_window (GtkApplication *application, const gchar *command);
+static const gchar ui_menus_xml[];
 
 
 static const GOptionEntry option_entries[] =
@@ -151,18 +142,6 @@ static const GOptionEntry option_entries[] =
 };
 
 
-static gint
-accel_index (enum AccelAction action)
-{
-    for (guint i = 0; i < LENGTH_OF (global_accels); i++)
-        if (global_accels[i].action == action)
-            return i;
-
-    /* Not found */
-    return -1;
-}
-
-
 /*
  * Set of colors as used by GNOME-Terminal for the “Linux” color scheme:
  * http://git.gnome.org/browse/gnome-terminal/tree/src/terminal-profile.c
@@ -204,6 +183,7 @@ configure_term_widget (VteTerminal *vtterm)
     g_assert (opt_font);
 
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
+    vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
     vte_terminal_set_visible_bell        (vtterm, FALSE);
     vte_terminal_set_audible_bell        (vtterm, FALSE);
@@ -218,7 +198,7 @@ configure_term_widget (VteTerminal *vtterm)
                                           &color_fg,
                                           &color_bg,
                                           color_palette,
-                                          LENGTH_OF (color_palette));
+                                          G_N_ELEMENTS (color_palette));
 
     gint match_tag =
         vte_terminal_match_add_gregex (vtterm,
@@ -236,7 +216,7 @@ configure_term_widget (VteTerminal *vtterm)
 
 
 static void
-set_urgent (VteTerminal *vtterm, gpointer userdata)
+term_beeped (VteTerminal *vtterm, gpointer userdata)
 {
     /*
      * Only set the _URGENT hint when the window is not focused. If the
@@ -248,24 +228,18 @@ set_urgent (VteTerminal *vtterm, gpointer userdata)
 }
 
 
-static void
-set_title (VteTerminal *vtterm, gpointer userdata)
-{
-    gtk_window_set_title (GTK_WINDOW (userdata),
-                          vte_terminal_get_window_title (vtterm));
-}
-
-
 /*
- * FIXME: Somehow an empty (black) padding always remains even after setting
- * the sizing hints.
+ * FIXME: A black border still remains when the size hints are set.
  */
 static void
-set_window_sizing_increment (VteTerminal *vtterm, GtkWindow *window)
+term_char_size_changed (VteTerminal *vtterm,
+                        guint        width,
+                        guint        height,
+                        gpointer     userdata)
 {
     GdkGeometry geometry;
-    geometry.height_inc = vte_terminal_get_char_height (vtterm);
-    geometry.width_inc = vte_terminal_get_char_width (vtterm);
+    geometry.height_inc = height;
+    geometry.width_inc = width;
 
     GtkBorder padding;
     gtk_style_context_get_padding (gtk_widget_get_style_context (GTK_WIDGET (vtterm)),
@@ -277,12 +251,13 @@ set_window_sizing_increment (VteTerminal *vtterm, GtkWindow *window)
     geometry.min_height = geometry.base_height + 3 * geometry.height_inc;
     geometry.min_width = geometry.base_width + 10 * geometry.width_inc;
 
-    gtk_window_set_geometry_hints (window,
-                                   GTK_WIDGET (window),
+    gtk_window_set_geometry_hints (GTK_WINDOW (userdata),
+                                   GTK_WIDGET (vtterm),
                                    &geometry,
                                    GDK_HINT_MIN_SIZE |
                                    GDK_HINT_BASE_SIZE |
                                    GDK_HINT_RESIZE_INC);
+    gtk_widget_queue_resize (GTK_WIDGET (vtterm));
 }
 
 
@@ -297,7 +272,6 @@ font_size (VteTerminal *vtterm, GtkWindow *window, gint modifier)
     switch (modifier) {
       case 0:
         vte_terminal_set_font_from_string (vtterm, opt_font);
-        new_size = pango_font_description_get_size (vte_terminal_get_font (vtterm));
         break;
 
       case 1:
@@ -313,9 +287,6 @@ font_size (VteTerminal *vtterm, GtkWindow *window, gint modifier)
         g_printerr ("%s: invalid modifier '%i'", __func__, modifier);
         return;
     }
-
-    if (new_size != old_size)
-        set_window_sizing_increment (vtterm, window);
 }
 
 
@@ -332,209 +303,17 @@ guess_shell (void)
 }
 
 
-static void
-spawn_terminal (VteTerminal *vtterm)
-{
-    const gchar *curdir_uri = vte_terminal_get_current_directory_uri(vtterm);
-    const gchar *curdir_path = NULL;
-
-    gchar *argv[] = {
-        "dwt",
-        "-t", opt_title,
-        "-f", opt_font,
-        opt_bold ? "-b" : NULL,
-        NULL
-    };
-
-    /*
-     * TODO: Use entries in /proc to get current directory of the child
-     * shell and our own location by reading /proc/self/exe
-     */
-
-    if (curdir_uri && g_str_has_prefix (curdir_uri, "file://"))
-        curdir_path = curdir_uri + 7;
-
-    GPid pid;
-    GError *error = NULL;
-    g_spawn_async (curdir_path,
-                   argv,
-                   NULL,
-                   G_SPAWN_SEARCH_PATH,
-                   NULL,
-                   NULL,
-                   &pid,
-                   &error);
-}
-
-
-static gboolean
-handle_key_press (GtkWidget   *widget,
-                  GdkEventKey *event,
-                  gpointer     userdata)
-{
-#define HANDLE_ACCEL(_action, _expr) \
-    do { \
-        static gint idx = -2; \
-        if (idx == -2) idx = accel_index (_action); \
-        if (idx >= 0 && event->keyval == global_accels[idx].accel_key && \
-            CHECK_FLAGS (event->state, global_accels[idx].accel_mod)) { \
-            _expr; \
-            return TRUE; \
-        } \
-    } while (0)
-
-    HANDLE_ACCEL (AccelPaste,
-                  vte_terminal_paste_clipboard (VTE_TERMINAL (widget)));
-
-    HANDLE_ACCEL (AccelCopy,
-                  vte_terminal_copy_clipboard (VTE_TERMINAL (widget));
-                  vte_terminal_copy_primary (VTE_TERMINAL (widget)));
-
-    HANDLE_ACCEL (AccelTerm,
-                  spawn_terminal (VTE_TERMINAL (widget)));
-
-    HANDLE_ACCEL (AccelFontNormal,
-                  font_size (VTE_TERMINAL (widget), GTK_WINDOW (userdata),  0));
-    HANDLE_ACCEL (AccelFontBigger,
-                  font_size (VTE_TERMINAL (widget), GTK_WINDOW (userdata), +1));
-    HANDLE_ACCEL (AccelFontSmaller,
-                  font_size (VTE_TERMINAL (widget), GTK_WINDOW (userdata), -1));
-#undef HANDLE_ACCEL
-
-    return FALSE;
-}
-
-
-static const gchar*
-guess_browser (void)
-{
-    static gchar *browser = NULL;
-
-    if (!browser) {
-        if (g_getenv ("BROWSER")) {
-            browser = g_strdup (g_getenv ("BROWSER"));
-        }
-        else {
-            browser = g_find_program_in_path ("xdg-open");
-            if (!browser) {
-                browser = g_find_program_in_path ("gnome-open");
-                if (!browser) {
-                    browser = g_find_program_in_path ("exo-open");
-                    if (!browser) {
-                        browser = g_find_program_in_path ("firefox");
-                    }
-                }
-            }
-        }
-    }
-
-    return browser;
-}
-
-
-static void
-spawn_browser (const gchar* url)
-{
-    GError *error = NULL;
-    gchar *cmdline[] = { (gchar*) guess_browser (), (gchar*) url, NULL };
-
-    if (!cmdline[0]) {
-        g_printerr ("Could not determine browser to use.\n");
-    }
-    else if (!g_spawn_async (NULL,
-                             cmdline,
-                             NULL,
-                             G_SPAWN_SEARCH_PATH,
-                             NULL,
-                             NULL,
-                             NULL,
-                             &error))
-    {
-        g_printerr ("Could not launch browser: %s", error->message);
-        g_error_free (error);
-    }
-}
-
-
 #if DWT_USE_POPOVER
-static GtkWidget *popover_copy_url_button = NULL;
-static GtkWidget *popover_open_url_button = NULL;
-
-static void
-popover_copy_clicked (GtkButton *button, gpointer userdata)
-{
-    vte_terminal_copy_clipboard (VTE_TERMINAL (userdata));
-    vte_terminal_copy_primary (VTE_TERMINAL (userdata));
-    gtk_widget_grab_focus (GTK_WIDGET (userdata));
-}
-
-static void
-popover_paste_clicked (GtkButton *button, gpointer userdata)
-{
-    vte_terminal_paste_clipboard (VTE_TERMINAL (userdata));
-    gtk_widget_grab_focus (GTK_WIDGET (userdata));
-}
-
-static void
-popover_open_url_clicked (GtkButton *button, gpointer userdata)
-{
-    spawn_browser (last_match_text);
-
-    g_free (last_match_text);
-    last_match_text = NULL;
-
-    gtk_widget_grab_focus (GTK_WIDGET (userdata));
-}
-
-static void
-popover_copy_url_clicked (GtkButton *button, gpointer userdata)
-{
-    gtk_clipboard_set_text (gtk_clipboard_get (GDK_SELECTION_PRIMARY),
-                            last_match_text, -1);
-    gtk_clipboard_set_text (gtk_clipboard_get (GDK_SELECTION_CLIPBOARD),
-                            last_match_text, -1);
-
-    g_free (last_match_text);
-    last_match_text = NULL;
-
-    gtk_widget_grab_focus (GTK_WIDGET (userdata));
-}
-
-
 static GtkWidget*
-setup_popover (GtkWidget *vtterm)
+setup_popover (VteTerminal *vtterm)
 {
-    GtkWidget *popover = gtk_popover_new (vtterm);
-    GtkWidget *box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-
-    /* Copy */
-    GtkWidget *item = gtk_button_new_with_mnemonic ("_Copy");
-    g_signal_connect (G_OBJECT (item), "clicked",
-                      G_CALLBACK (popover_copy_clicked), vtterm);
-    gtk_container_add (GTK_CONTAINER (box), item);
-
-    /* Paste */
-    item = gtk_button_new_with_mnemonic ("_Paste");
-    g_signal_connect (G_OBJECT (item), "clicked",
-                      G_CALLBACK (popover_paste_clicked), vtterm);
-    gtk_container_add (GTK_CONTAINER (box), item);
-
-    /* Open URL */
-    item = popover_open_url_button =
-        gtk_button_new_with_mnemonic ("_Open URL");
-    g_signal_connect (G_OBJECT (item), "clicked",
-                      G_CALLBACK (popover_open_url_clicked), vtterm);
-    gtk_container_add (GTK_CONTAINER (box), item);
-
-    /* Copy URL */
-    item = popover_copy_url_button =
-        gtk_button_new_with_mnemonic ("Copy _URL");
-    g_signal_connect (G_OBJECT (item), "clicked",
-                      G_CALLBACK (popover_copy_url_clicked), vtterm);
-    gtk_container_add (GTK_CONTAINER (box), item);
-
-    gtk_container_set_border_width (GTK_CONTAINER (popover), 5);
-    gtk_container_add (GTK_CONTAINER (popover), box);
+    GtkWidget *popover = gtk_popover_new (GTK_WIDGET (vtterm));
+    GtkBuilder *builder = gtk_builder_new ();
+    gtk_builder_add_from_string (builder, ui_menus_xml, -1, NULL);
+    gtk_popover_bind_model (GTK_POPOVER (popover),
+                            G_MENU_MODEL (gtk_builder_get_object (builder, "popover-menu")),
+                            NULL);
+    g_object_unref (builder);
     return popover;
 }
 #else /* !DWT_USE_POPOVER */
@@ -543,9 +322,9 @@ setup_popover (GtkWidget *vtterm)
 
 
 static gboolean
-handle_mouse_release (VteTerminal    *vtterm,
-                      GdkEventButton *event,
-                      gpointer        userdata)
+term_mouse_button_released (VteTerminal    *vtterm,
+                            GdkEventButton *event,
+                            gpointer        userdata)
 {
     g_free (last_match_text);
     last_match_text = NULL;
@@ -557,7 +336,11 @@ handle_mouse_release (VteTerminal    *vtterm,
     gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
 
     if (match && event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
-        spawn_browser (match);
+        GError *gerror = NULL;
+        if (!gtk_show_uri (NULL, match, event->time, &gerror)) {
+            g_printerr ("Could not open URL: %s\n", gerror->message);
+            g_error_free (gerror);
+        }
         g_free (match);
         return TRUE;
     }
@@ -570,17 +353,22 @@ handle_mouse_release (VteTerminal    *vtterm,
         rect.width = vte_terminal_get_char_width (vtterm);
         rect.y = rect.height * row;
         rect.x = rect.width * col;
-
         gtk_popover_set_pointing_to (GTK_POPOVER (userdata), &rect);
-        gtk_widget_show_all (GTK_WIDGET (userdata));
 
+        GActionMap *actions = G_ACTION_MAP (gtk_widget_get_parent (GTK_WIDGET (vtterm)));
+        g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
+                                                                                  "open-url")),
+                                     match != NULL);
+        g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
+                                                                                  "copy-url")),
+                                     match != NULL);
         if (match) {
             last_match_text = match;
             match = NULL;
-        } else {
-            gtk_widget_hide (popover_open_url_button);
-            gtk_widget_hide (popover_copy_url_button);
         }
+
+        gtk_widget_show_all (GTK_WIDGET (userdata));
+
         return TRUE;
     }
 #endif /* DWT_USE_POPOVER */
@@ -590,54 +378,30 @@ handle_mouse_release (VteTerminal    *vtterm,
 
 
 #if DWT_USE_HEADER_BAR
-static void
-set_header_bar_title (VteTerminal *vtterm, gpointer userdata)
-{
-    gtk_label_set_text (GTK_LABEL (userdata),
-                        vte_terminal_get_window_title (vtterm));
-}
-
-
 static gboolean
 header_bar_close_released (GtkWidget *widget,
                            GdkEvent  *event,
                            gpointer   userdata)
 {
-    gtk_main_quit ();
+    gtk_widget_destroy (GTK_WIDGET (userdata));
     return TRUE;
 }
 
 
 static void
-toggle_window_maximized (GObject    *object,
-                         GParamSpec *pspec,
-                         gpointer    userdata)
-{
-    GtkWidget *header = GTK_WIDGET (userdata);
-
-    if (gtk_window_is_maximized (GTK_WINDOW (object)))
-        gtk_widget_hide (header);
-    else
-        gtk_widget_show (header);
-}
-
-static void
-setup_header_bar (GtkWidget *window, GtkWidget *vtterm)
+setup_header_bar (GtkWidget   *window,
+                  VteTerminal *vtterm)
 {
     GtkWidget *header = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
     GtkWidget *widget = gtk_label_new (opt_title);
     GtkWidget *bin = gtk_alignment_new (0.5, 0.5, 1, 1);
 
+    /* Label */
     gtk_alignment_set_padding (GTK_ALIGNMENT (bin), 3, 4, 12, 12);
     gtk_container_add (GTK_CONTAINER (bin), widget);
-
-    /*
-     * Pick the title changes and propagate them to the title label.
-     */
-    g_signal_connect (G_OBJECT (vtterm), "window-title-changed",
-                      G_CALLBACK (set_header_bar_title),
-                      (gpointer) widget);
-
+    g_object_bind_property (G_OBJECT (vtterm), "window-title",
+                            G_OBJECT (widget), "label",
+                            G_BINDING_DEFAULT);
     gtk_box_pack_start (GTK_BOX (header), bin, TRUE, TRUE, 0);
 
     /* Close button */
@@ -654,24 +418,20 @@ setup_header_bar (GtkWidget *window, GtkWidget *vtterm)
     bin = gtk_event_box_new ();
     gtk_container_add (GTK_CONTAINER (bin), widget);
     g_signal_connect (G_OBJECT (bin), "button-release-event",
-                      G_CALLBACK (header_bar_close_released), NULL);
+                      G_CALLBACK (header_bar_close_released), window);
     gtk_box_pack_end (GTK_BOX (header), bin, FALSE, FALSE, 0);
 
     gtk_window_set_titlebar (GTK_WINDOW (window), header);
 
-    /*
-     * Hide the header bar when the window is maximized.
-     */
+    /* Hide the header bar when the window is maximized. */
 #if DWT_HEADER_BAR_HIDE
     if (!opt_hidebar)
 #else /* !DWT_HEADER_BAR_HIDE */
     if (opt_hidebar)
 #endif /* DWT_HEADER_BAR_HIDE */
-    {
-        g_signal_connect (G_OBJECT (window), "notify::is-maximized",
-                          G_CALLBACK (toggle_window_maximized),
-                          header);
-    }
+        g_object_bind_property (G_OBJECT (window), "is-maximized",
+                                G_OBJECT (header), "visible",
+                                G_BINDING_INVERT_BOOLEAN);
 }
 #endif /* DWT_USE_HEADER_BAR */
 
@@ -694,111 +454,305 @@ window_is_active_notified (GObject    *object,
     }
 }
 
-int
-main (int argc, char *argv[])
-{
-    GOptionContext *optctx = g_option_context_new ("[-e command]");
 
-    g_option_context_set_help_enabled (optctx, TRUE);
-    g_option_context_add_main_entries (optctx, option_entries, NULL);
-    g_option_context_add_group (optctx, gtk_get_option_group (TRUE));
+static void
+term_child_exited (VteTerminal *vtterm,
+                   gpointer     userdata)
+{
+    /*
+     * Destroy the window when the terminal child is exited. Note that this
+     * will fire the "delete-event" signal, and its handler already takes
+     * care of deregistering the window in the GtkApplication.
+     */
+    gtk_widget_destroy (GTK_WIDGET (userdata));
+}
+
+
+/*
+ * TODO: Unify the action callbacks that change the font size into a single
+ * callback that has a paramters.
+ */
+static void
+font_reset_action_activated (GSimpleAction *action,
+                             GVariant      *parameter,
+                             gpointer       userdata)
+{
+    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    font_size (vtterm, GTK_WINDOW (userdata), 0);
+}
+
+
+static void
+font_bigger_action_activated (GSimpleAction *action,
+                              GVariant      *parameter,
+                              gpointer       userdata)
+{
+    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    font_size (vtterm, GTK_WINDOW (userdata), +1);
+}
+
+
+static void
+font_smaller_action_activated (GSimpleAction *action,
+                               GVariant      *parameter,
+                               gpointer       userdata)
+{
+    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    font_size (vtterm, GTK_WINDOW (userdata), -1);
+}
+
+
+static void
+paste_action_activated (GSimpleAction *action,
+                        GVariant      *parameter,
+                        gpointer       userdata)
+{
+    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    vte_terminal_paste_clipboard (vtterm);
+}
+
+
+static void
+copy_action_activated (GSimpleAction *action,
+                       GVariant      *parameter,
+                       gpointer       userdata)
+{
+    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    vte_terminal_copy_clipboard (vtterm);
+    vte_terminal_copy_primary (vtterm);
+}
+
+
+static void
+new_terminal_action_activated (GSimpleAction *action,
+                               GVariant      *parameter,
+                               gpointer       userdata)
+{
+    create_new_window (GTK_APPLICATION (userdata), NULL);
+}
+
+
+static void
+about_action_activated (GSimpleAction *action,
+                       GVariant      *parameter,
+                       gpointer       userdata)
+{
+    static const gchar* authors[] = {
+        "Adrián Pérez de Castro",
+        NULL,
+    };
+
+    gtk_show_about_dialog (NULL,
+                           "authors",        authors,
+                           "logo-icon-name", "terminal",
+                           "license-type",   GTK_LICENSE_MIT_X11,
+                           "comments",       "A sleek terminal emulator",
+                           "website",        "https://github.com/aperezdc/dwt",
+                           NULL);
+}
+
+
+static void
+quit_action_activated (GSimpleAction *action,
+                       GVariant      *parameter,
+                       gpointer       userdata)
+{
+    g_application_quit (G_APPLICATION (userdata));
+}
+
+
+static void
+copy_url_action_activated (GSimpleAction *action,
+                           GVariant      *parameter,
+                           gpointer       userdata)
+{
+    gtk_clipboard_set_text (gtk_clipboard_get (GDK_SELECTION_PRIMARY),
+                            last_match_text, -1);
+    gtk_clipboard_set_text (gtk_clipboard_get (GDK_SELECTION_CLIPBOARD),
+                            last_match_text, -1);
+
+    g_free (last_match_text);
+    last_match_text = NULL;
+}
+
+
+static void
+open_url_action_activated (GSimpleAction *action,
+                           GVariant      *parameter,
+                           gpointer       userdata)
+{
+    GError *gerror = NULL;
+    if (!gtk_show_uri (NULL, last_match_text, GDK_CURRENT_TIME, &gerror)) {
+        g_printerr ("Could not open URL: %s\n", gerror->message);
+        g_error_free (gerror);
+    }
+
+    g_free (last_match_text);
+    last_match_text = NULL;
+}
+
+
+static void
+add_actions (GActionMap      *action_map,
+             const ActionReg *action,
+             guint            n_actions)
+{
+    for (; n_actions--; action++) {
+        GSimpleAction *act = g_simple_action_new (action->name + 4, NULL);
+        g_action_map_add_action (G_ACTION_MAP (action_map), G_ACTION (act));
+        g_signal_connect (G_OBJECT (act), "activate",
+                          G_CALLBACK (action->callback),
+                          action_map);
+        g_object_unref (act);
+    }
+}
+
+
+static void
+add_application_accels (GtkApplication  *application,
+                        const ActionReg *action,
+                        guint            n_actions)
+{
+    for (; n_actions--; action++) {
+        if (!action->accel)
+            continue;
+        gtk_application_add_accelerator (application,
+                                         action->accel,
+                                         action->name,
+                                         NULL);
+    }
+}
+
+
+static const gchar ui_menus_xml[] =
+"<interface>"
+" <menu id='app-menu'>"
+"  <section>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>New _Terminal</attribute>"
+"    <attribute name='action'>app.new-terminal</attribute>"
+"   </item>"
+"  </section>"
+"  <section>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>_About</attribute>"
+"    <attribute name='action'>app.about</attribute>"
+"   </item>"
+"  </section>"
+"  <section>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>_Quit</attribute>"
+"    <attribute name='action'>app.quit</attribute>"
+"   </item>"
+"  </section>"
+" </menu>"
+" <menu id='popover-menu'>"
+"  <section>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>_Copy</attribute>"
+"    <attribute name='action'>win.copy</attribute>"
+"   </item>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>_Paste</attribute>"
+"    <attribute name='action'>win.paste</attribute>"
+"   </item>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>Copy _URL</attribute>"
+"    <attribute name='action'>win.copy-url</attribute>"
+"   </item>"
+"   <item>"
+"    <attribute name='label' translatable='yes'>_Open URL…</attribute>"
+"    <attribute name='action'>win.open-url</attribute>"
+"   </item>"
+"  </section>"
+" </menu>"
+"</interface>";
+
+static const ActionReg win_actions[] = {
+    { "win.font-reset",   "<Super>0",       font_reset_action_activated   },
+    { "win.font-bigger",  "<Super>plus",    font_bigger_action_activated  },
+    { "win.font-smaller", "<Super>minus",   font_smaller_action_activated },
+    { "win.copy",         "<Ctrl><Shift>c", copy_action_activated         },
+    { "win.paste",        "<Ctrl><Shift>p", paste_action_activated        },
+    { "win.copy-url",     NULL,             copy_url_action_activated     },
+    { "win.open-url",     NULL,             open_url_action_activated     },
+};
+
+static const ActionReg app_actions[] = {
+    { "app.new-terminal", "<Ctrl><Shift>n", new_terminal_action_activated },
+    { "app.about",        NULL,             about_action_activated        },
+    { "app.quit",         NULL,             quit_action_activated         },
+};
+
+
+static GtkWidget*
+create_new_window (GtkApplication *application,
+                   const gchar    *command)
+{
+    if (!command)
+        command = guess_shell ();
 
     GError *gerror = NULL;
-    if (!g_option_context_parse (optctx, &argc, &argv, &gerror)) {
-        g_printerr ("%s: could not parse command line: %s\n",
-                    argv[0], gerror->message);
-        g_error_free (gerror);
-        exit (EXIT_FAILURE);
-    }
+    gint command_argv_len = 0;
+    gchar **command_argv = NULL;
 
-    g_option_context_free (optctx);
-    optctx = NULL;
-
-    if (!opt_command)
-        opt_command = guess_shell ();
-
-    gchar **command = NULL;
-    gint    cmdlen  = 0;
-    if (!g_shell_parse_argv (opt_command, &cmdlen, &command, &gerror)) {
+    if (!g_shell_parse_argv (command,
+                             &command_argv_len,
+                             &command_argv,
+                             &gerror))
+    {
         g_printerr ("%s: coult not parse command: %s\n",
-                    argv[0], gerror->message);
+                    __func__, gerror->message);
         g_error_free (gerror);
-        exit (EXIT_FAILURE);
+        return NULL;
     }
 
-    gtk_init (&argc, &argv);
-
-    /* Prefer a dark theme variant, if available */
-    g_object_set(gtk_settings_get_default(),
-                 "gtk-application-prefer-dark-theme",
-                 TRUE, NULL);
-
-    GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_icon_name (GTK_WINDOW (window), "terminal");
+    GtkWidget *window = gtk_application_window_new (application);
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
     gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
 
-    GtkWidget *vtterm = vte_terminal_new ();
-    configure_term_widget (VTE_TERMINAL (vtterm));
-    set_window_sizing_increment (VTE_TERMINAL (vtterm), GTK_WINDOW (window));
+    add_actions (G_ACTION_MAP (window),
+                 win_actions, G_N_ELEMENTS (win_actions));
 
-    /*
-     * Exit when the child process is exited, or when the window is closed.
-     */
-    g_signal_connect (G_OBJECT (window), "delete-event",
-                      G_CALLBACK (gtk_main_quit),
-                      NULL);
+    VteTerminal *vtterm = VTE_TERMINAL (vte_terminal_new ());
+    configure_term_widget (vtterm);
+    term_char_size_changed (vtterm,
+                            vte_terminal_get_char_width (vtterm),
+                            vte_terminal_get_char_height (vtterm),
+                            window);
 
+    g_signal_connect (G_OBJECT (window), "notify::is-active",
+                      G_CALLBACK (window_is_active_notified), vtterm);
+
+    g_signal_connect (G_OBJECT (vtterm), "char-size-changed",
+                      G_CALLBACK (term_char_size_changed), window);
     g_signal_connect (G_OBJECT (vtterm), "child-exited",
-                      G_CALLBACK (gtk_main_quit),
-                      NULL);
-
-    /*
-     * Handle keyboard shortcuts.
-     */
-    g_signal_connect (G_OBJECT (vtterm), "key-press-event",
-                      G_CALLBACK (handle_key_press),
-                      window);
-
-    /*
-     * Handles clicks un URIs
-     */
+                      G_CALLBACK (term_child_exited), window);
+    g_signal_connect (G_OBJECT (vtterm), "beep",
+                      G_CALLBACK (term_beeped), window);
     g_signal_connect (G_OBJECT (vtterm), "button-release-event",
-                      G_CALLBACK (handle_mouse_release),
+                      G_CALLBACK (term_mouse_button_released),
                       setup_popover (vtterm));
 
     /*
-     * Transform terminal beeps in _URGENT hints for the window.
+     * Propagate title changes to the window.
      */
-    g_signal_connect (G_OBJECT (vtterm), "beep",
-                      G_CALLBACK (set_urgent),
-                      (gpointer) window);
-
-    /*
-     * Pick the title changes and propagate them to the window.
-     */
-    g_signal_connect (G_OBJECT (vtterm), "window-title-changed",
-                      G_CALLBACK (set_title),
-                      (gpointer) window);
-
-    /*
-     * Change the cursor color when window is made (in)active.
-     */
-    g_signal_connect (G_OBJECT (window), "notify::is-active",
-                      G_CALLBACK (window_is_active_notified),
-                      vtterm);
-
-    g_assert (opt_workdir);
+    g_object_bind_property (G_OBJECT (vtterm), "window-title",
+                            G_OBJECT (window), "title",
+                            G_BINDING_DEFAULT);
 
 #if DWT_USE_HEADER_BAR
     setup_header_bar (window, vtterm);
 #endif /* DWT_USE_HEADER_BAR */
 
+    gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vtterm));
+
+    g_assert (opt_workdir);
     if (!vte_terminal_fork_command_full (VTE_TERMINAL (vtterm),
                                          VTE_PTY_DEFAULT,
                                          opt_workdir,
-                                         command,
+                                         command_argv,
                                          NULL,
                                          G_SPAWN_SEARCH_PATH,
                                          NULL,
@@ -807,15 +761,77 @@ main (int argc, char *argv[])
                                          &gerror))
     {
         g_printerr ("%s: could not spawn shell: %s\n",
-                    argv[0], gerror->message);
+                    __func__, gerror->message);
         g_error_free (gerror);
-        exit (EXIT_FAILURE);
+        gtk_widget_destroy (window);
+        return NULL;
     }
 
-    gtk_container_add (GTK_CONTAINER (window), vtterm);
     gtk_widget_show_all (window);
+    return window;
+}
 
-    gtk_main ();
-    return EXIT_SUCCESS;
+
+static void
+app_started (GApplication *application)
+{
+    /* Set default icon, and preferred theme variant. */
+    gtk_window_set_default_icon_name ("terminal");
+    g_object_set(gtk_settings_get_default(),
+                 "gtk-application-prefer-dark-theme",
+                 TRUE, NULL);
+
+    add_actions (G_ACTION_MAP (application),
+                 app_actions, G_N_ELEMENTS (app_actions));
+
+    GtkBuilder *builder = gtk_builder_new ();
+    gtk_builder_add_from_string (builder, ui_menus_xml, -1, NULL);
+    gtk_application_set_app_menu (GTK_APPLICATION (application),
+        G_MENU_MODEL (gtk_builder_get_object (builder, "app-menu")));
+    g_object_unref (builder);
+
+    add_application_accels (GTK_APPLICATION (application),
+                            app_actions, G_N_ELEMENTS (app_actions));
+    add_application_accels (GTK_APPLICATION (application),
+                            win_actions, G_N_ELEMENTS (win_actions));
+}
+
+
+static gint
+app_command_line_received (GApplication            *application,
+                           GApplicationCommandLine *cmdline)
+{
+    g_application_hold (G_APPLICATION (application));
+
+    gint argc = 0;
+    gchar **argv = g_application_command_line_get_arguments (cmdline, &argc);
+
+    /* TODO: pass options */
+    create_new_window (GTK_APPLICATION (application), NULL);
+
+    g_strfreev (argv);
+    g_application_release (application);
+    return 0;
+}
+
+
+int
+main (int argc, char *argv[])
+{
+    GtkApplication *application =
+        gtk_application_new (application_id,
+                             G_APPLICATION_HANDLES_COMMAND_LINE);
+
+    g_application_add_main_option_entries (G_APPLICATION (application),
+                                           option_entries);
+
+    g_signal_connect (G_OBJECT (application), "startup",
+                      G_CALLBACK (app_started), NULL);
+    g_signal_connect (G_OBJECT (application), "command-line",
+                      G_CALLBACK (app_command_line_received), NULL);
+
+    gint status = g_application_run (G_APPLICATION (application), argc, argv);
+    g_object_unref (application);
+    return status;
 }
 
