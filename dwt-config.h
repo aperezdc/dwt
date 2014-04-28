@@ -32,6 +32,14 @@
 
 
 /*
+ * Whether to use GtkPopover for contextual menu actions (e.g. copy & paste)
+ *
+ * Note that this feature is experimental and requires GTK+ 3.12
+ */
+#define DWT_USE_POPOVER FALSE
+
+
+/*
  * Global dwt accelerators (key bindings) are defined as keystroke-action
  * pairs. Keystrokes should be parseable by gtk_accelerator_parse().
  * Available actions:

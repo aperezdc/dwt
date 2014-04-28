@@ -66,6 +66,11 @@ static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
 
+/* Last matched text piece */
+static gchar *last_match_text = NULL;
+static gint   last_match_tag  = -1;
+
+
 static const GOptionEntry option_entries[] =
 {
     {
@@ -417,52 +422,163 @@ guess_browser (void)
 }
 
 
-static gboolean
-handle_mouse_press (VteTerminal *vtterm,
-                    GdkEventButton *event,
-                    gpointer userdata)
+static void
+spawn_browser (const gchar* url)
 {
-    gchar *match = NULL;
-    glong col, row;
+    GError *error = NULL;
+    gchar *cmdline[] = { (gchar*) guess_browser (), (gchar*) url, NULL };
+
+    if (!cmdline[0]) {
+        g_printerr ("Could not determine browser to use.\n");
+    }
+    else if (!g_spawn_async (NULL,
+                             cmdline,
+                             NULL,
+                             G_SPAWN_SEARCH_PATH,
+                             NULL,
+                             NULL,
+                             NULL,
+                             &error))
+    {
+        g_printerr ("Could not launch browser: %s", error->message);
+        g_error_free (error);
+    }
+}
+
+
+#if DWT_USE_POPOVER
+static GtkWidget *popover_copy_url_button = NULL;
+static GtkWidget *popover_open_url_button = NULL;
+
+static void
+popover_copy_clicked (GtkButton *button, gpointer userdata)
+{
+    vte_terminal_copy_clipboard (VTE_TERMINAL (userdata));
+    vte_terminal_copy_primary (VTE_TERMINAL (userdata));
+    gtk_widget_grab_focus (GTK_WIDGET (userdata));
+}
+
+static void
+popover_paste_clicked (GtkButton *button, gpointer userdata)
+{
+    vte_terminal_paste_clipboard (VTE_TERMINAL (userdata));
+    gtk_widget_grab_focus (GTK_WIDGET (userdata));
+}
+
+static void
+popover_open_url_clicked (GtkButton *button, gpointer userdata)
+{
+    spawn_browser (last_match_text);
+    g_free (last_match_text);
+    last_match_text = NULL;
+    gtk_widget_grab_focus (GTK_WIDGET (userdata));
+}
+
+static void
+popover_copy_url_clicked (GtkButton *button, gpointer userdata)
+{
+    gtk_clipboard_set_text (gtk_clipboard_get (GDK_SELECTION_PRIMARY),
+                            last_match_text, -1);
+    gtk_clipboard_set_text (gtk_clipboard_get (GDK_SELECTION_CLIPBOARD),
+                            last_match_text, -1);
+
+    g_free (last_match_text);
+    last_match_text = NULL;
+    gtk_widget_grab_focus (GTK_WIDGET (userdata));
+}
+
+
+static GtkWidget*
+setup_popover (GtkWidget *vtterm)
+{
+    GtkWidget *popover = gtk_popover_new (vtterm);
+    GtkWidget *box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+    GtkWidget *item;
+
+    /* Copy */
+    item = gtk_button_new_with_mnemonic ("_Copy");
+    g_signal_connect (G_OBJECT (item), "clicked",
+                      G_CALLBACK (popover_copy_clicked), vtterm);
+    gtk_container_add (GTK_CONTAINER (box), item);
+
+    /* Paste */
+    item = gtk_button_new_with_mnemonic ("_Paste");
+    g_signal_connect (G_OBJECT (item), "clicked",
+                      G_CALLBACK (popover_paste_clicked), vtterm);
+    gtk_container_add (GTK_CONTAINER (box), item);
+
+    /* Open URL */
+    item = popover_open_url_button =
+        gtk_button_new_with_mnemonic ("_Open URL");
+    g_signal_connect (G_OBJECT (item), "clicked",
+                      G_CALLBACK (popover_open_url_clicked), vtterm);
+    gtk_container_add (GTK_CONTAINER (box), item);
+
+    /* Copy URL */
+    item = popover_copy_url_button =
+        gtk_button_new_with_mnemonic ("Copy _URL");
+    g_signal_connect (G_OBJECT (item), "clicked",
+                      G_CALLBACK (popover_copy_url_clicked), vtterm);
+    gtk_container_add (GTK_CONTAINER (box), item);
+
+    popover_open_url_button = item;
+    gtk_container_add (GTK_CONTAINER (popover), box);
+    return popover;
+}
+#else /* !DWT_USE_POPOVER */
+# define setup_popover(_vtterm) NULL
+#endif /* DWT_USE_POPOVER */
+
+
+static gboolean
+handle_mouse_release (VteTerminal    *vtterm,
+                      GdkEventButton *event,
+                      gpointer        userdata)
+{
+    g_assert (vtterm != NULL);
+    g_assert (event != NULL);
+    g_assert (event->type == GDK_BUTTON_RELEASE);
+
+    glong row = (glong) (event->y) / vte_terminal_get_char_height (vtterm);
+    glong col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
+
+    gchar* match;
     gint match_tag;
-
-    g_assert (vtterm);
-    g_assert (event);
-
-    if (event->type != GDK_BUTTON_PRESS)
-        return FALSE;
-
-    row = (glong) (event->y) / vte_terminal_get_char_height (vtterm);
-    col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
 
     if ((match = vte_terminal_match_check (vtterm, col, row, &match_tag)) != NULL) {
         if (event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
-            GError *error = NULL;
-            gchar *cmdline[] = {
-                (gchar*) guess_browser (),
-                match,
-                NULL
-            };
-
-            if (!cmdline[0]) {
-                g_printerr ("Could not determine browser to use.\n");
-            }
-            else if (!g_spawn_async (NULL,
-                                     cmdline,
-                                     NULL,
-                                     G_SPAWN_SEARCH_PATH,
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     &error))
-            {
-                g_printerr ("Could not launch browser: %s", error->message);
-                g_error_free (error);
-            }
+            spawn_browser (match);
+            g_free (match);
+            return TRUE;
         }
-        g_free (match);
+    }
+
+
+#if DWT_USE_POPOVER
+    if (event->button == 3 && userdata != NULL) {
+        GdkRectangle rect;
+
+        rect.height = vte_terminal_get_char_height (vtterm);
+        rect.width = vte_terminal_get_char_width (vtterm);
+        rect.y = rect.height * row;
+        rect.x = rect.width * col;
+
+        gtk_popover_set_pointing_to (GTK_POPOVER (userdata), &rect);
+        gtk_widget_show_all (GTK_WIDGET (userdata));
+
+        if (match != NULL) {
+            g_free (last_match_text);
+            last_match_text = match;
+            last_match_tag = match_tag;
+            match = NULL;
+        } else {
+            gtk_widget_hide (popover_open_url_button);
+            gtk_widget_hide (popover_copy_url_button);
+        }
+
         return TRUE;
     }
+#endif /* DWT_USE_POPOVER */
 
     return FALSE;
 }
@@ -633,9 +749,9 @@ main (int argc, char *argv[])
     /*
      * Handles clicks un URIs
      */
-    g_signal_connect (G_OBJECT (vtterm), "button-press-event",
-                      G_CALLBACK (handle_mouse_press),
-                      NULL);
+    g_signal_connect (G_OBJECT (vtterm), "button-release-event",
+                      G_CALLBACK (handle_mouse_release),
+                      setup_popover (vtterm));
 
     /*
      * Transform terminal beeps in _URGENT hints for the window.
