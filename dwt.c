@@ -290,6 +290,7 @@ font_size (VteTerminal *vtterm, GtkWindow *window, gint modifier)
     switch (modifier) {
       case 0:
         vte_terminal_set_font_from_string (vtterm, opt_font);
+        new_size = pango_font_description_get_size (vte_terminal_get_font (vtterm));
         break;
 
       case 1:
@@ -303,6 +304,7 @@ font_size (VteTerminal *vtterm, GtkWindow *window, gint modifier)
 
       default:
         g_printerr ("%s: invalid modifier '%i'", __func__, modifier);
+        return;
     }
 
     if (new_size != old_size)
