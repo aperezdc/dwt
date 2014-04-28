@@ -1,6 +1,6 @@
 /*
  * dwt.c
- * Copyright (C) 2012-2013 Adrian Perez <aperez@igalia.com>
+ * Copyright (C) 2012-2014 Adrian Perez <aperez@igalia.com>
  *
  * Distributed under terms of the MIT license.
  */
@@ -39,6 +39,18 @@ static struct
 #define DWT_CURSOR_COLOR_UNFOCUSED "666666"
 #endif /* !DWT_CURSOR_COLOR_UNFOCUSED */
 
+#ifndef DWT_USE_POPOVER
+#define DWT_USE_POPOVER FALSE
+#endif /* !DWT_USE_POPOVER */
+
+#ifndef DWT_USE_HEADER_BAR
+#define DWT_USE_HEADER_BAR FALSE
+#endif /* !DWT_USE_HEADER_BAR */
+
+#ifndef DWT_HEADER_BAR_HIDE
+#define DWT_HEADER_BAR_HIDE TRUE
+#endif /* !DWT_HEADER_BAR_HIDE */
+
 #include <vte/vte.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -62,13 +74,13 @@ static       gboolean opt_bold    = FALSE;
 static       gint     opt_scroll  = 1024;
 
 
-static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
 
+#if DWT_USE_POPOVER
 /* Last matched text piece */
 static gchar *last_match_text = NULL;
-static gint   last_match_tag  = -1;
+#endif /* DWT_USE_POPOVER */
 
 
 static const GOptionEntry option_entries[] =
@@ -141,13 +153,9 @@ static const GOptionEntry option_entries[] =
 static gint
 accel_index (enum AccelAction action)
 {
-    guint i;
-
-    for (i = 0; i < LENGTH_OF (global_accels); i++) {
-        if (global_accels[i].action == action) {
+    for (guint i = 0; i < LENGTH_OF (global_accels); i++)
+        if (global_accels[i].action == action)
             return i;
-        }
-    }
 
     /* Not found */
     return -1;
@@ -192,9 +200,6 @@ static const gchar word_chars[] = "-A-Za-z0-9,./?%&#@_~";
 static void
 configure_term_widget (VteTerminal *vtterm)
 {
-    gint match_tag;
-
-    g_assert (vtterm);
     g_assert (opt_font);
 
     vte_terminal_set_mouse_autohide      (vtterm, TRUE);
@@ -214,18 +219,18 @@ configure_term_widget (VteTerminal *vtterm)
                                           color_palette,
                                           LENGTH_OF (color_palette));
 
-    match_tag = vte_terminal_match_add_gregex (vtterm,
-                                               g_regex_new (uri_regexp,
-                                                            G_REGEX_CASELESS,
-                                                            G_REGEX_MATCH_NOTEMPTY,
-                                                            NULL),
-                                               0);
-
+    gint match_tag =
+        vte_terminal_match_add_gregex (vtterm,
+                                       g_regex_new (uri_regexp,
+                                                    G_REGEX_CASELESS,
+                                                    G_REGEX_MATCH_NOTEMPTY,
+                                                    NULL),
+                                       0);
     vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
 
     vte_terminal_feed (vtterm,
                        osc_cursor_focused,
-                       sizeof(osc_cursor_focused));
+                       sizeof (osc_cursor_focused));
 }
 
 
@@ -358,10 +363,6 @@ handle_key_press (GtkWidget   *widget,
                   GdkEventKey *event,
                   gpointer     userdata)
 {
-    g_assert (VTE_IS_TERMINAL (widget));
-    g_assert (GTK_IS_WINDOW (userdata));
-    g_assert (event);
-
 #define HANDLE_ACCEL(_action, _expr) \
     do { \
         static gint idx = -2; \
@@ -469,8 +470,10 @@ static void
 popover_open_url_clicked (GtkButton *button, gpointer userdata)
 {
     spawn_browser (last_match_text);
+
     g_free (last_match_text);
     last_match_text = NULL;
+
     gtk_widget_grab_focus (GTK_WIDGET (userdata));
 }
 
@@ -484,6 +487,7 @@ popover_copy_url_clicked (GtkButton *button, gpointer userdata)
 
     g_free (last_match_text);
     last_match_text = NULL;
+
     gtk_widget_grab_focus (GTK_WIDGET (userdata));
 }
 
@@ -493,10 +497,9 @@ setup_popover (GtkWidget *vtterm)
 {
     GtkWidget *popover = gtk_popover_new (vtterm);
     GtkWidget *box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-    GtkWidget *item;
 
     /* Copy */
-    item = gtk_button_new_with_mnemonic ("_Copy");
+    GtkWidget *item = gtk_button_new_with_mnemonic ("_Copy");
     g_signal_connect (G_OBJECT (item), "clicked",
                       G_CALLBACK (popover_copy_clicked), vtterm);
     gtk_container_add (GTK_CONTAINER (box), item);
@@ -535,29 +538,25 @@ handle_mouse_release (VteTerminal    *vtterm,
                       GdkEventButton *event,
                       gpointer        userdata)
 {
-    g_assert (vtterm != NULL);
-    g_assert (event != NULL);
-    g_assert (event->type == GDK_BUTTON_RELEASE);
+    g_free (last_match_text);
+    last_match_text = NULL;
 
     glong row = (glong) (event->y) / vte_terminal_get_char_height (vtterm);
     glong col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
 
-    gchar* match;
     gint match_tag;
+    gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
 
-    if ((match = vte_terminal_match_check (vtterm, col, row, &match_tag)) != NULL) {
-        if (event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
-            spawn_browser (match);
-            g_free (match);
-            return TRUE;
-        }
+    if (match && event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
+        spawn_browser (match);
+        g_free (match);
+        return TRUE;
     }
 
 
 #if DWT_USE_POPOVER
     if (event->button == 3 && userdata != NULL) {
         GdkRectangle rect;
-
         rect.height = vte_terminal_get_char_height (vtterm);
         rect.width = vte_terminal_get_char_width (vtterm);
         rect.y = rect.height * row;
@@ -566,16 +565,13 @@ handle_mouse_release (VteTerminal    *vtterm,
         gtk_popover_set_pointing_to (GTK_POPOVER (userdata), &rect);
         gtk_widget_show_all (GTK_WIDGET (userdata));
 
-        if (match != NULL) {
-            g_free (last_match_text);
+        if (match) {
             last_match_text = match;
-            last_match_tag = match_tag;
             match = NULL;
         } else {
             gtk_widget_hide (popover_open_url_button);
             gtk_widget_hide (popover_copy_url_button);
         }
-
         return TRUE;
     }
 #endif /* DWT_USE_POPOVER */
@@ -610,12 +606,10 @@ toggle_window_maximized (GObject    *object,
 {
     GtkWidget *header = GTK_WIDGET (userdata);
 
-    if (gtk_window_is_maximized (GTK_WINDOW (object))) {
+    if (gtk_window_is_maximized (GTK_WINDOW (object)))
         gtk_widget_hide (header);
-    }
-    else {
+    else
         gtk_widget_show (header);
-    }
 }
 
 static void
@@ -676,21 +670,13 @@ setup_header_bar (GtkWidget *window, GtkWidget *vtterm)
 int
 main (int argc, char *argv[])
 {
-    GOptionContext *optctx = NULL;
-
-    GtkWidget *window = NULL;
-    GtkWidget *vtterm = NULL;
-    GError    *gerror = NULL;
-
-    gchar **command = NULL;
-    gint    cmdlen = 0;
-
-    optctx = g_option_context_new ("[-e command]");
+    GOptionContext *optctx = g_option_context_new ("[-e command]");
 
     g_option_context_set_help_enabled (optctx, TRUE);
     g_option_context_add_main_entries (optctx, option_entries, NULL);
     g_option_context_add_group (optctx, gtk_get_option_group (TRUE));
 
+    GError *gerror = NULL;
     if (!g_option_context_parse (optctx, &argc, &argv, &gerror)) {
         g_printerr ("%s: could not parse command line: %s\n",
                     argv[0], gerror->message);
@@ -704,6 +690,8 @@ main (int argc, char *argv[])
     if (!opt_command)
         opt_command = guess_shell ();
 
+    gchar **command = NULL;
+    gint    cmdlen  = 0;
     if (!g_shell_parse_argv (opt_command, &cmdlen, &command, &gerror)) {
         g_printerr ("%s: coult not parse command: %s\n",
                     argv[0], gerror->message);
@@ -718,13 +706,13 @@ main (int argc, char *argv[])
                  "gtk-application-prefer-dark-theme",
                  TRUE, NULL);
 
-    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     gtk_window_set_icon_name (GTK_WINDOW (window), "terminal");
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
     gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
 
-    vtterm = vte_terminal_new ();
+    GtkWidget *vtterm = vte_terminal_new ();
     configure_term_widget (VTE_TERMINAL (vtterm));
     set_window_sizing_increment (VTE_TERMINAL (vtterm), GTK_WINDOW (window));
 
