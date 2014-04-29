@@ -283,10 +283,28 @@ guess_shell (void)
 
 
 #if DWT_USE_POPOVER
+static gboolean
+popover_idle_closed_tick (gpointer userdata)
+{
+    gtk_widget_grab_focus (GTK_WIDGET (userdata));
+    return FALSE; /* Do no re-arm (run once) */
+}
+
+static void
+popover_closed (GtkPopover  *popover,
+                VteTerminal *vtterm)
+{
+    /* XXX: Grabbing the focus right away does not work, must do later. */
+    g_idle_add (popover_idle_closed_tick, vtterm);
+}
+
 static GtkWidget*
 setup_popover (VteTerminal *vtterm)
 {
     GtkWidget *popover = gtk_popover_new (GTK_WIDGET (vtterm));
+    g_signal_connect (G_OBJECT (popover), "closed",
+                      G_CALLBACK (popover_closed), vtterm);
+
     GtkBuilder *builder = gtk_builder_new ();
     gtk_builder_add_from_string (builder, ui_menus_xml, -1, NULL);
     gtk_popover_bind_model (GTK_POPOVER (popover),
@@ -724,6 +742,7 @@ create_new_window (GtkApplication *application,
 #endif /* DWT_USE_HEADER_BAR */
 
     gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vtterm));
+    gtk_widget_set_receives_default (GTK_WIDGET (vtterm), TRUE);
 
     g_assert (opt_workdir);
     if (!vte_terminal_fork_command_full (VTE_TERMINAL (vtterm),
