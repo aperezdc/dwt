@@ -49,5 +49,8 @@ else
 	git archive --prefix=dwt-$(VERSION)/ $(VERSION) | xz -c > dwt-$(VERSION).tar.xz
 endif
 
-.PHONY: clean install dist
+print-flags:
+	@echo "$(PKG_CFLAGS) $(CPPFLAGS)"
+
+.PHONY: clean install dist print-flags
 

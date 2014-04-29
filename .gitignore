@@ -1,3 +1,4 @@
 *.o
 dwt
 *.sw[op]
+*.py[co]
