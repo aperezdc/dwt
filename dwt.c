@@ -375,48 +375,23 @@ term_mouse_button_released (VteTerminal    *vtterm,
 
 
 #if DWT_USE_HEADER_BAR
-static gboolean
-header_bar_close_released (GtkWidget *widget,
-                           GdkEvent  *event,
-                           gpointer   userdata)
-{
-    gtk_widget_destroy (GTK_WIDGET (userdata));
-    return TRUE;
-}
-
-
 static void
 setup_header_bar (GtkWidget   *window,
                   VteTerminal *vtterm)
 {
-    GtkWidget *header = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
+    /*
+     * Using the default GtkHeaderBar title/subtitle widget makes the bar
+     * too thick to look nice for a terminal, so set a custom widget.
+     */
     GtkWidget *widget = gtk_label_new (opt_title);
-    GtkWidget *bin = gtk_alignment_new (0.5, 0.5, 1, 1);
-
-    /* Label */
-    gtk_alignment_set_padding (GTK_ALIGNMENT (bin), 3, 4, 12, 12);
-    gtk_container_add (GTK_CONTAINER (bin), widget);
     g_object_bind_property (G_OBJECT (vtterm), "window-title",
                             G_OBJECT (widget), "label",
                             G_BINDING_DEFAULT);
-    gtk_box_pack_start (GTK_BOX (header), bin, TRUE, TRUE, 0);
 
-    /* Close button */
-    widget = gtk_image_new_from_icon_name ("window-close-symbolic",
-                                           GTK_ICON_SIZE_BUTTON);
-    gtk_widget_add_events (widget,
-                           GDK_BUTTON_PRESS_MASK |
-                           GDK_BUTTON_RELEASE_MASK |
-                           GDK_ENTER_NOTIFY_MASK |
-                           GDK_LEAVE_NOTIFY_MASK);
-    gtk_widget_set_margin_start (widget, 5);
-    gtk_widget_set_margin_end (widget, 5);
-
-    bin = gtk_event_box_new ();
-    gtk_container_add (GTK_CONTAINER (bin), widget);
-    g_signal_connect (G_OBJECT (bin), "button-release-event",
-                      G_CALLBACK (header_bar_close_released), window);
-    gtk_box_pack_end (GTK_BOX (header), bin, FALSE, FALSE, 0);
+    GtkWidget *header = gtk_header_bar_new ();
+    gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
+    gtk_header_bar_set_has_subtitle (GTK_HEADER_BAR (header), FALSE);
+    gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), widget);
 
     gtk_window_set_titlebar (GTK_WINDOW (window), header);
 
