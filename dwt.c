@@ -27,10 +27,6 @@
 #define DWT_USE_HEADER_BAR FALSE
 #endif /* !DWT_USE_HEADER_BAR */
 
-#ifndef DWT_HEADER_BAR_HIDE
-#define DWT_HEADER_BAR_HIDE TRUE
-#endif /* !DWT_HEADER_BAR_HIDE */
-
 #include <vte/vte.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -38,13 +34,7 @@
 
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
-#if DWT_USE_HEADER_BAR
-# ifndef DWT_HEADER_BAR_HIDE
-#  define DWT_HEADER_BAR_HIDE TRUE
-# endif /* !DWT_USE_HEADER_BAR */
-static       gboolean opt_hidebar = FALSE;
-#endif /* DWT_USE_HEADER_BAR */
-
+static       gboolean opt_showbar = FALSE;
 static const gchar   *opt_workdir = ".";
 static const gchar   *opt_command = NULL;
 static       gchar   *opt_title   = "dwt";
@@ -119,25 +109,14 @@ static const GOptionEntry option_entries[] =
         &opt_bold,
         "Allow using bold fonts",
         NULL,
-    },
-#if DWT_USE_HEADER_BAR
-    {
-#if !DWT_HEADER_BAR_HIDE
-        "no-"
-#endif /* !DWT_HEADER_BAR_HIDE */
+    }, {
         "title-on-maximize", 'H',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_NONE,
-        &opt_hidebar,
-#if DWT_HEADER_BAR_HIDE
-        "Show"
-#else /*! DWT_HEADER_BAR_HIDE */
-        "Hide"
-#endif /* DWT_HEADER_BAR_HIDE */
-        " title bar when window is maximized.",
+        &opt_showbar,
+        "Always show title bar when window is maximized.",
         NULL,
     },
-#endif /* DWT_USE_HEADER_BAR */
     { NULL }
 };
 
@@ -424,14 +403,11 @@ setup_header_bar (GtkWidget   *window,
     gtk_window_set_titlebar (GTK_WINDOW (window), header);
 
     /* Hide the header bar when the window is maximized. */
-#if DWT_HEADER_BAR_HIDE
-    if (!opt_hidebar)
-#else /* !DWT_HEADER_BAR_HIDE */
-    if (opt_hidebar)
-#endif /* DWT_HEADER_BAR_HIDE */
+    if (!opt_showbar) {
         g_object_bind_property (G_OBJECT (window), "is-maximized",
                                 G_OBJECT (header), "visible",
                                 G_BINDING_INVERT_BOOLEAN);
+    }
 }
 #endif /* DWT_USE_HEADER_BAR */
 
@@ -710,7 +686,8 @@ create_new_window (GtkApplication *application,
     GtkWidget *window = gtk_application_window_new (application);
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
     gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
-    gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window), TRUE);
+    gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window),
+                                                 !opt_showbar);
 
     add_actions (G_ACTION_MAP (window),
                  win_actions, G_N_ELEMENTS (win_actions));
