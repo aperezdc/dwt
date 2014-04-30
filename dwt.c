@@ -16,7 +16,7 @@
 #endif /* !DWT_CURSOR_COLOR_FOCUSED */
 
 #ifndef DWT_CURSOR_COLOR_UNFOCUSED
-#define DWT_CURSOR_COLOR_UNFOCUSED "666666"
+#define DWT_CURSOR_COLOR_UNFOCUSED "#999999"
 #endif /* !DWT_CURSOR_COLOR_UNFOCUSED */
 
 #ifndef DWT_USE_POPOVER
@@ -188,10 +188,6 @@ configure_term_widget (VteTerminal *vtterm)
                                                     NULL),
                                        0);
     vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
-
-    vte_terminal_feed (vtterm,
-                       osc_cursor_focused,
-                       sizeof (osc_cursor_focused));
 }
 
 
@@ -203,7 +199,7 @@ term_beeped (VteTerminal *vtterm, gpointer userdata)
      * window is focused, the user is likely to notice what is happening
      * without the need to call for attention.
      */
-    if (!gtk_window_is_active (GTK_WINDOW (userdata)))
+    if (!gtk_window_has_toplevel_focus (GTK_WINDOW (userdata)))
         gtk_window_set_urgency_hint (GTK_WINDOW (userdata), TRUE);
 }
 
@@ -394,7 +390,7 @@ header_bar_term_beeped (VteTerminal *vtterm,
         return;
 
     GtkWindow *window = GTK_WINDOW (gtk_widget_get_parent (GTK_WIDGET (vtterm)));
-    if (!gtk_window_is_active (window))
+    if (!gtk_window_has_toplevel_focus (window))
         return;
 
     gtk_revealer_set_reveal_child (revealer, TRUE);
@@ -454,11 +450,11 @@ setup_header_bar (GtkWidget   *window,
 
 
 static void
-window_is_active_notified (GObject    *object,
-                           GParamSpec *pspec,
-                           gpointer    userdata)
+window_has_toplevel_focus_notified (GObject    *object,
+                                    GParamSpec *pspec,
+                                    gpointer    userdata)
 {
-    if (gtk_window_is_active (GTK_WINDOW (object))) {
+    if (gtk_window_has_toplevel_focus (GTK_WINDOW (object))) {
         vte_terminal_feed (VTE_TERMINAL (userdata),
                            osc_cursor_focused,
                            sizeof (osc_cursor_focused));
@@ -696,8 +692,9 @@ create_new_window (GtkApplication *application,
                             vte_terminal_get_char_height (vtterm),
                             window);
 
-    g_signal_connect (G_OBJECT (window), "notify::is-active",
-                      G_CALLBACK (window_is_active_notified), vtterm);
+    g_signal_connect (G_OBJECT (window), "notify::has-toplevel-focus",
+                      G_CALLBACK (window_has_toplevel_focus_notified),
+                      vtterm);
 
     g_signal_connect (G_OBJECT (vtterm), "char-size-changed",
                       G_CALLBACK (term_char_size_changed), window);
