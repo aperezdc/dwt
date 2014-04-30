@@ -378,6 +378,29 @@ term_mouse_button_released (VteTerminal    *vtterm,
 
 
 #if DWT_USE_HEADER_BAR
+static gboolean
+header_bar_term_beeped_timeout (gpointer userdata)
+{
+    gtk_revealer_set_reveal_child (GTK_REVEALER (userdata), FALSE);
+    return FALSE; /* Do no re-arm (run once) */
+}
+
+static void
+header_bar_term_beeped (VteTerminal *vtterm,
+                        GtkRevealer *revealer)
+{
+    /* If already shown, do nothing. */
+    if (gtk_revealer_get_reveal_child (revealer))
+        return;
+
+    GtkWindow *window = GTK_WINDOW (gtk_widget_get_parent (GTK_WIDGET (vtterm)));
+    if (!gtk_window_is_active (window))
+        return;
+
+    gtk_revealer_set_reveal_child (revealer, TRUE);
+    g_timeout_add_seconds (3, header_bar_term_beeped_timeout, revealer);
+}
+
 static void
 setup_header_bar (GtkWidget   *window,
                   VteTerminal *vtterm)
@@ -386,15 +409,37 @@ setup_header_bar (GtkWidget   *window,
      * Using the default GtkHeaderBar title/subtitle widget makes the bar
      * too thick to look nice for a terminal, so set a custom widget.
      */
-    GtkWidget *widget = gtk_label_new (opt_title);
+    GtkWidget *label = gtk_label_new (opt_title);
     g_object_bind_property (G_OBJECT (vtterm), "window-title",
-                            G_OBJECT (widget), "label",
+                            G_OBJECT (label), "label",
                             G_BINDING_DEFAULT);
 
     GtkWidget *header = gtk_header_bar_new ();
     gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
     gtk_header_bar_set_has_subtitle (GTK_HEADER_BAR (header), FALSE);
-    gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), widget);
+    gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), label);
+
+    GtkWidget *button = gtk_button_new_from_icon_name ("tab-new-symbolic",
+                                                       GTK_ICON_SIZE_BUTTON);
+    gtk_button_set_focus_on_click (GTK_BUTTON (button), FALSE);
+    gtk_button_set_relief (GTK_BUTTON (button), GTK_RELIEF_NONE);
+    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.new-terminal");
+    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), button);
+
+    GtkWidget *revealer = gtk_revealer_new ();
+    gtk_container_add (GTK_CONTAINER (revealer),
+                       gtk_image_new_from_icon_name ("software-update-urgent-symbolic",
+                                                     GTK_ICON_SIZE_BUTTON));
+    gtk_revealer_set_transition_duration (GTK_REVEALER (revealer), 500);
+    gtk_revealer_set_transition_type (GTK_REVEALER (revealer),
+                                      GTK_REVEALER_TRANSITION_TYPE_CROSSFADE);
+    gtk_header_bar_pack_end (GTK_HEADER_BAR (header), revealer);
+
+    g_signal_connect (G_OBJECT (vtterm), "beep",
+                      G_CALLBACK (header_bar_term_beeped), revealer);
+    g_object_bind_property (G_OBJECT (window), "urgency-hint",
+                            G_OBJECT (revealer), "reveal-child",
+                            G_BINDING_DEFAULT);
 
     gtk_window_set_titlebar (GTK_WINDOW (window), header);
 
