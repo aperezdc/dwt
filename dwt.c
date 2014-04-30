@@ -27,6 +27,8 @@
 #define DWT_USE_HEADER_BAR FALSE
 #endif /* !DWT_USE_HEADER_BAR */
 
+#define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
+
 #include <vte/vte.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -62,7 +64,6 @@ typedef struct {
 /* Forward declarations. */
 static GtkWidget*
 create_new_window (GtkApplication *application, const gchar *command);
-static const gchar ui_menus_xml[];
 
 
 static const GOptionEntry option_entries[] =
@@ -305,8 +306,7 @@ setup_popover (VteTerminal *vtterm)
     g_signal_connect (G_OBJECT (popover), "closed",
                       G_CALLBACK (popover_closed), vtterm);
 
-    GtkBuilder *builder = gtk_builder_new ();
-    gtk_builder_add_from_string (builder, ui_menus_xml, -1, NULL);
+    GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_popover_bind_model (GTK_POPOVER (popover),
                             G_MENU_MODEL (gtk_builder_get_object (builder, "popover-menu")),
                             NULL);
@@ -593,50 +593,6 @@ add_application_accels (GtkApplication  *application,
 }
 
 
-static const gchar ui_menus_xml[] =
-"<interface>"
-" <menu id='app-menu'>"
-"  <section>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>New _Terminal</attribute>"
-"    <attribute name='action'>app.new-terminal</attribute>"
-"   </item>"
-"  </section>"
-"  <section>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>_About</attribute>"
-"    <attribute name='action'>app.about</attribute>"
-"   </item>"
-"  </section>"
-"  <section>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>_Quit</attribute>"
-"    <attribute name='action'>app.quit</attribute>"
-"   </item>"
-"  </section>"
-" </menu>"
-" <menu id='popover-menu'>"
-"  <section>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>_Copy</attribute>"
-"    <attribute name='action'>win.copy</attribute>"
-"   </item>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>_Paste</attribute>"
-"    <attribute name='action'>win.paste</attribute>"
-"   </item>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>Copy _URL</attribute>"
-"    <attribute name='action'>win.copy-url</attribute>"
-"   </item>"
-"   <item>"
-"    <attribute name='label' translatable='yes'>_Open URL…</attribute>"
-"    <attribute name='action'>win.open-url</attribute>"
-"   </item>"
-"  </section>"
-" </menu>"
-"</interface>";
-
 static const ActionReg win_actions[] = {
     { "win.font-reset",   "<Super>0",       font_reset_action_activated   },
     { "win.font-bigger",  "<Super>plus",    font_bigger_action_activated  },
@@ -755,8 +711,7 @@ app_started (GApplication *application)
     add_actions (G_ACTION_MAP (application),
                  app_actions, G_N_ELEMENTS (app_actions));
 
-    GtkBuilder *builder = gtk_builder_new ();
-    gtk_builder_add_from_string (builder, ui_menus_xml, -1, NULL);
+    GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_application_set_app_menu (GTK_APPLICATION (application),
         G_MENU_MODEL (gtk_builder_get_object (builder, "app-menu")));
     g_object_unref (builder);

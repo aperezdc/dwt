@@ -17,7 +17,7 @@ all: dwt dwt.1 dwt.desktop
 
 dwt: CFLAGS += $(PKG_CFLAGS)
 dwt: LDLIBS += $(PKG_LDLIBS)
-dwt: dwt.o
+dwt: dwt.o dwt.gresources.o
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
@@ -25,8 +25,16 @@ dwt: dwt.o
 dwt.1: dwt.rst
 	rst2man $< $@
 
+dwt.gresources.o: menus.xml
+
+%.gresources.c: %.gresources.xml
+	glib-compile-resources --generate-source --target=$@ $<
+
+%.gresources.h: %.gresources.xml
+	glib-compile-resources --generate-header --target=$@ $<
+
 clean:
-	$(RM) dwt dwt.o
+	$(RM) dwt dwt.gresources.o dwt.gresources.h dwt.gresources.c dwt.o
 
 install: all
 	install -m 755 -d $(DESTDIR)$(PREFIX)/bin

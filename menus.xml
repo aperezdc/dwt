@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<interface>
+	<menu id='app-menu'>
+		<section>
+			<item>
+				<attribute name='label' translatable='yes'>New _Terminal</attribute>
+				<attribute name='action'>app.new-terminal</attribute>
+			</item>
+		</section>
+		<section>
+			<item>
+				<attribute name='label' translatable='yes'>_About</attribute>
+				<attribute name='action'>app.about</attribute>
+			</item>
+		</section>
+		<section>
+			<item>
+				<attribute name='label' translatable='yes'>_Quit</attribute>
+				<attribute name='action'>app.quit</attribute>
+			</item>
+		</section>
+	</menu>
+	<menu id='popover-menu'>
+		<section>
+			<item>
+				<attribute name='label' translatable='yes'>_Copy</attribute>
+				<attribute name='action'>win.copy</attribute>
+			</item>
+			<item>
+				<attribute name='label' translatable='yes'>_Paste</attribute>
+				<attribute name='action'>win.paste</attribute>
+			</item>
+			<item>
+				<attribute name='label' translatable='yes'>Copy _URL</attribute>
+				<attribute name='action'>win.copy-url</attribute>
+			</item>
+			<item>
+				<attribute name='label' translatable='yes'>_Open URL…</attribute>
+				<attribute name='action'>win.open-url</attribute>
+			</item>
+		</section>
+	</menu>
+</interface>

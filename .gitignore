@@ -2,3 +2,4 @@
 dwt
 *.sw[op]
 *.py[co]
+*.gresources.[hc]
