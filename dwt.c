@@ -354,6 +354,9 @@ term_mouse_button_released (VteTerminal    *vtterm,
 
         GActionMap *actions = G_ACTION_MAP (gtk_widget_get_parent (GTK_WIDGET (vtterm)));
         g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
+                                                                                  "copy")),
+                                    vte_terminal_get_has_selection (vtterm));
+        g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
                                                                                   "open-url")),
                                      match != NULL);
         g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
