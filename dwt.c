@@ -53,12 +53,6 @@ static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "
 static gchar *last_match_text = NULL;
 #endif /* DWT_USE_POPOVER */
 
-typedef struct {
-    const gchar *name;
-    const gchar *accel;
-    void (*callback) (GSimpleAction*, GVariant*, gpointer);
-} ActionReg;
-
 
 /* Forward declarations. */
 static GtkWidget*
@@ -233,35 +227,6 @@ term_char_size_changed (VteTerminal *vtterm,
                                    GDK_HINT_BASE_SIZE |
                                    GDK_HINT_RESIZE_INC);
     gtk_widget_queue_resize (GTK_WIDGET (vtterm));
-}
-
-
-static void
-font_size (VteTerminal *vtterm, GtkWindow *window, gint modifier)
-{
-    const PangoFontDescription *fontd = vte_terminal_get_font (vtterm);
-    gint old_size = pango_font_description_get_size (fontd);
-    PangoFontDescription *new_fontd;
-    gint new_size;
-
-    switch (modifier) {
-      case 0:
-        vte_terminal_set_font_from_string (vtterm, opt_font);
-        break;
-
-      case 1:
-      case -1:
-        new_size = old_size + modifier * PANGO_SCALE;
-        new_fontd = pango_font_description_copy_static (fontd);
-        pango_font_description_set_size (new_fontd, new_size);
-        vte_terminal_set_font (vtterm, new_fontd);
-        pango_font_description_free (new_fontd);
-        break;
-
-      default:
-        g_printerr ("%s: invalid modifier '%i'", __func__, modifier);
-        return;
-    }
 }
 
 
@@ -480,37 +445,37 @@ term_child_exited (VteTerminal *vtterm,
 }
 
 
-/*
- * TODO: Unify the action callbacks that change the font size into a single
- * callback that has a paramters.
- */
 static void
-font_reset_action_activated (GSimpleAction *action,
-                             GVariant      *parameter,
-                             gpointer       userdata)
+font_size_action_ativated (GSimpleAction *action,
+                           GVariant      *parameter,
+                           gpointer       userdata)
 {
     VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
-    font_size (vtterm, GTK_WINDOW (userdata), 0);
-}
+    const gint modifier = g_variant_get_int32 (parameter);
 
+    const PangoFontDescription *fontd = vte_terminal_get_font (vtterm);
+    gint old_size = pango_font_description_get_size (fontd);
+    PangoFontDescription *new_fontd;
+    gint new_size;
 
-static void
-font_bigger_action_activated (GSimpleAction *action,
-                              GVariant      *parameter,
-                              gpointer       userdata)
-{
-    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
-    font_size (vtterm, GTK_WINDOW (userdata), +1);
-}
+    switch (modifier) {
+      case 0:
+        vte_terminal_set_font_from_string (vtterm, opt_font);
+        break;
 
+      case 1:
+      case -1:
+        new_size = old_size + modifier * PANGO_SCALE;
+        new_fontd = pango_font_description_copy_static (fontd);
+        pango_font_description_set_size (new_fontd, new_size);
+        vte_terminal_set_font (vtterm, new_fontd);
+        pango_font_description_free (new_fontd);
+        break;
 
-static void
-font_smaller_action_activated (GSimpleAction *action,
-                               GVariant      *parameter,
-                               gpointer       userdata)
-{
-    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
-    font_size (vtterm, GTK_WINDOW (userdata), -1);
+      default:
+        g_printerr ("%s: invalid modifier '%i'", __func__, modifier);
+        return;
+    }
 }
 
 
@@ -604,52 +569,20 @@ open_url_action_activated (GSimpleAction *action,
 }
 
 
-static void
-add_actions (GActionMap      *action_map,
-             const ActionReg *action,
-             guint            n_actions)
-{
-    for (; n_actions--; action++) {
-        GSimpleAction *act = g_simple_action_new (action->name + 4, NULL);
-        g_action_map_add_action (G_ACTION_MAP (action_map), G_ACTION (act));
-        g_signal_connect (G_OBJECT (act), "activate",
-                          G_CALLBACK (action->callback),
-                          action_map);
-        g_object_unref (act);
-    }
-}
-
-
-static void
-add_application_accels (GtkApplication  *application,
-                        const ActionReg *action,
-                        guint            n_actions)
-{
-    for (; n_actions--; action++) {
-        if (!action->accel)
-            continue;
-        gtk_application_add_accelerator (application,
-                                         action->accel,
-                                         action->name,
-                                         NULL);
-    }
-}
-
-
-static const ActionReg win_actions[] = {
-    { "win.font-reset",   "<Super>0",       font_reset_action_activated   },
-    { "win.font-bigger",  "<Super>plus",    font_bigger_action_activated  },
-    { "win.font-smaller", "<Super>minus",   font_smaller_action_activated },
-    { "win.copy",         "<Ctrl><Shift>c", copy_action_activated         },
-    { "win.paste",        "<Ctrl><Shift>p", paste_action_activated        },
-    { "win.copy-url",     NULL,             copy_url_action_activated     },
-    { "win.open-url",     NULL,             open_url_action_activated     },
+static const GActionEntry win_actions[] = {
+    { "font-reset",   font_size_action_ativated,  "i",  "0", NULL },
+    { "font-bigger",  font_size_action_ativated,  "i",  "1", NULL },
+    { "font-smaller", font_size_action_ativated,  "i", "-1", NULL },
+    { "copy",         copy_action_activated,     NULL, NULL, NULL },
+    { "paste",        paste_action_activated,    NULL, NULL, NULL },
+    { "copy-url",     copy_url_action_activated, NULL, NULL, NULL },
+    { "open-orl",     open_url_action_activated, NULL, NULL, NULL },
 };
 
-static const ActionReg app_actions[] = {
-    { "app.new-terminal", "<Ctrl><Shift>n", new_terminal_action_activated },
-    { "app.about",        NULL,             about_action_activated        },
-    { "app.quit",         NULL,             quit_action_activated         },
+static const GActionEntry app_actions[] = {
+    { "new-terminal", new_terminal_action_activated, NULL, NULL, NULL },
+    { "about",        about_action_activated,        NULL, NULL, NULL },
+    { "quit",         quit_action_activated,         NULL, NULL, NULL },
 };
 
 
@@ -681,8 +614,8 @@ create_new_window (GtkApplication *application,
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window),
                                                  !opt_showbar);
 
-    add_actions (G_ACTION_MAP (window),
-                 win_actions, G_N_ELEMENTS (win_actions));
+    g_action_map_add_action_entries (G_ACTION_MAP (window), win_actions,
+                                     G_N_ELEMENTS (win_actions), window);
 
     VteTerminal *vtterm = VTE_TERMINAL (vte_terminal_new ());
     configure_term_widget (vtterm);
@@ -752,18 +685,33 @@ app_started (GApplication *application)
                  "gtk-application-prefer-dark-theme",
                  TRUE, NULL);
 
-    add_actions (G_ACTION_MAP (application),
-                 app_actions, G_N_ELEMENTS (app_actions));
+    g_action_map_add_action_entries (G_ACTION_MAP (application), app_actions,
+                                     G_N_ELEMENTS (app_actions), application);
 
     GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_application_set_app_menu (GTK_APPLICATION (application),
         G_MENU_MODEL (gtk_builder_get_object (builder, "app-menu")));
     g_object_unref (builder);
 
-    add_application_accels (GTK_APPLICATION (application),
-                            app_actions, G_N_ELEMENTS (app_actions));
-    add_application_accels (GTK_APPLICATION (application),
-                            win_actions, G_N_ELEMENTS (win_actions));
+    const struct {
+        const gchar *action;
+        const gchar *accel;
+        GVariant    *param;
+    } accel_map[] = {
+        { "app.new-terminal", "<Ctrl><Shift>n", NULL                     },
+        { "win.font-reset",   "<Super>0",       g_variant_new_int32 (+0) },
+        { "win.font-bigger",  "<Super>plus",    g_variant_new_int32 (+1) },
+        { "win.font-smaller", "<Super>minus",   g_variant_new_int32 (-1) },
+        { "win.copy",         "<Ctrl><Shift>c", NULL                     },
+        { "win.paste",        "<Ctrl><Shift>p", NULL                     },
+    };
+
+    for (guint i = 0; i < G_N_ELEMENTS (accel_map); i++) {
+        gtk_application_add_accelerator (GTK_APPLICATION (application),
+                                         accel_map[i].accel,
+                                         accel_map[i].action,
+                                         accel_map[i].param);
+    }
 }
 
 
