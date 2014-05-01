@@ -153,9 +153,9 @@ configure_term_widget (VteTerminal *vtterm)
 {
     g_assert (opt_font);
 
-    vte_terminal_set_mouse_autohide      (vtterm, TRUE);
     vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
+    vte_terminal_set_mouse_autohide      (vtterm, FALSE);
     vte_terminal_set_visible_bell        (vtterm, FALSE);
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
