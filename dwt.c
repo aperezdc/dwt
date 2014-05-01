@@ -48,10 +48,8 @@ static       gint     opt_scroll  = 1024;
 static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
-#if DWT_USE_POPOVER
 /* Last matched text piece. */
 static gchar *last_match_text = NULL;
-#endif /* DWT_USE_POPOVER */
 
 
 /* Forward declarations. */
