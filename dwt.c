@@ -47,7 +47,6 @@ static       gint     opt_scroll  = 1024;
 
 static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
-static const gchar application_id[]       = "org.perezdecastro.dwt";
 
 #if DWT_USE_POPOVER
 /* Last matched text piece. */
@@ -786,11 +785,22 @@ app_command_line_received (GApplication            *application,
 }
 
 
+static const gchar*
+get_appplication_id (void) {
+    static const gchar *app_id = NULL;
+    if (!app_id) {
+        if (!(app_id = g_getenv ("DWT_APPLICATION_ID")))
+            app_id = "org.perezdecastro.dwt";
+    }
+    return g_str_equal ("none", app_id) ? NULL : app_id;
+}
+
+
 int
 main (int argc, char *argv[])
 {
     GtkApplication *application =
-        gtk_application_new (application_id,
+        gtk_application_new (get_appplication_id (),
                              G_APPLICATION_HANDLES_COMMAND_LINE);
 
     g_application_add_main_option_entries (G_APPLICATION (application),

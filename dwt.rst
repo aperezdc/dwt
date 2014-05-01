@@ -78,6 +78,13 @@ contains the path to the shell that will be run as default command in the
 terminal window. If not defined, `getpwuid(3)` will be used to determine the
 user shell.
 
+If present, the value of the ``DWT_APPLICATION_ID`` will be used as the
+unique identifier for the application. If a ``dwt`` process with the given
+identifier is already running, it will be instructed to create a new
+terminal window. This means that all the terminal windows created by
+launching ``dwt`` with the same identifier live in the same process. To
+disable this behaviour, use ``none`` as identifier.
+
 
 SEE ALSO
 ========
