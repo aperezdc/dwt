@@ -13,6 +13,7 @@ def FlagsForFile(path, **kwarg):
     flags = sh_split(check_output(["make", "print-flags"]))
     flags.extend(("-Qunused-arguments",
                   "-DDWT_USE_HEADER_BAR=TRUE",
-                  "-DDWT_USE_POPOVER=TRUE"))
+                  "-DDWT_USE_POPOVER=TRUE",
+                  "-DDWT_USE_OVERLAY=TRUE"))
     return { 'flags': flags, 'do_cache': True }
 

@@ -27,6 +27,10 @@
 #define DWT_USE_HEADER_BAR FALSE
 #endif /* !DWT_USE_HEADER_BAR */
 
+#ifndef DWT_USE_OVERLAY
+#define DWT_USE_OVERLAY FALSE
+#endif /* !DWT_USE_OVERLAY */
+
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
 #include <vte/vte.h>
@@ -310,7 +314,8 @@ term_mouse_button_released (VteTerminal    *vtterm,
         rect.x = rect.width * col;
         gtk_popover_set_pointing_to (GTK_POPOVER (userdata), &rect);
 
-        GActionMap *actions = G_ACTION_MAP (gtk_widget_get_parent (GTK_WIDGET (vtterm)));
+        GActionMap *actions = G_ACTION_MAP (gtk_widget_get_ancestor (GTK_WIDGET (vtterm),
+                                                                     GTK_TYPE_WINDOW));
         g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
                                                                                   "copy")),
                                     vte_terminal_get_has_selection (vtterm));
@@ -335,14 +340,16 @@ term_mouse_button_released (VteTerminal    *vtterm,
 }
 
 
-#if DWT_USE_HEADER_BAR
+#if DWT_USE_HEADER_BAR || DWT_USE_OVERLAY
 static gboolean
-header_bar_term_beeped_timeout (gpointer userdata)
+beeped_revealer_timeout (gpointer userdata)
 {
     gtk_revealer_set_reveal_child (GTK_REVEALER (userdata), FALSE);
     return FALSE; /* Do no re-arm (run once) */
 }
+#endif /* DWT_USE_HEADER_BAR || DWT_USE_OVERLAY */
 
+#if DWT_USE_HEADER_BAR
 static void
 header_bar_term_beeped (VteTerminal *vtterm,
                         GtkRevealer *revealer)
@@ -351,12 +358,13 @@ header_bar_term_beeped (VteTerminal *vtterm,
     if (gtk_revealer_get_reveal_child (revealer))
         return;
 
-    GtkWindow *window = GTK_WINDOW (gtk_widget_get_parent (GTK_WIDGET (vtterm)));
+    GtkWindow *window = GTK_WINDOW (gtk_widget_get_ancestor (GTK_WIDGET (vtterm),
+                                                             GTK_TYPE_WINDOW));
     if (!gtk_window_has_toplevel_focus (window))
         return;
 
     gtk_revealer_set_reveal_child (revealer, TRUE);
-    g_timeout_add_seconds (3, header_bar_term_beeped_timeout, revealer);
+    g_timeout_add_seconds (2, beeped_revealer_timeout, revealer);
 }
 
 static void
@@ -443,12 +451,22 @@ term_child_exited (VteTerminal *vtterm,
 }
 
 
+static VteTerminal*
+window_get_term_widget (GtkWindow *window)
+{
+    GtkWidget *widget = gtk_bin_get_child (GTK_BIN (window));
+    if (GTK_IS_BIN (widget))
+        widget = gtk_bin_get_child (GTK_BIN (widget));
+    return VTE_TERMINAL (widget);
+}
+
+
 static void
 font_size_action_ativated (GSimpleAction *action,
                            GVariant      *parameter,
                            gpointer       userdata)
 {
-    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    VteTerminal *vtterm = window_get_term_widget (GTK_WINDOW (userdata));
     const gint modifier = g_variant_get_int32 (parameter);
 
     const PangoFontDescription *fontd = vte_terminal_get_font (vtterm);
@@ -482,8 +500,7 @@ paste_action_activated (GSimpleAction *action,
                         GVariant      *parameter,
                         gpointer       userdata)
 {
-    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
-    vte_terminal_paste_clipboard (vtterm);
+    vte_terminal_paste_clipboard (window_get_term_widget (GTK_WINDOW (userdata)));
 }
 
 
@@ -492,7 +509,7 @@ copy_action_activated (GSimpleAction *action,
                        GVariant      *parameter,
                        gpointer       userdata)
 {
-    VteTerminal *vtterm = VTE_TERMINAL (gtk_bin_get_child (GTK_BIN (userdata)));
+    VteTerminal *vtterm = window_get_term_widget (GTK_WINDOW (userdata));
     vte_terminal_copy_clipboard (vtterm);
     vte_terminal_copy_primary (vtterm);
 }
@@ -584,6 +601,24 @@ static const GActionEntry app_actions[] = {
 };
 
 
+#if DWT_USE_OVERLAY
+static void
+overlay_term_beeped (GtkWidget   *vtterm,
+                     GtkRevealer *revealer)
+{
+    GtkWindow *window = GTK_WINDOW (gtk_widget_get_ancestor (vtterm,
+                                                             GTK_TYPE_WINDOW));
+
+    if (gtk_window_get_hide_titlebar_when_maximized (window) &&
+        gtk_window_is_maximized (window))
+    {
+        gtk_revealer_set_reveal_child (revealer, TRUE);
+        g_timeout_add_seconds (1, beeped_revealer_timeout, revealer);
+    }
+}
+#endif /* DWT_USE_OVERLAY */
+
+
 static GtkWidget*
 create_new_window (GtkApplication *application,
                    const gchar    *command)
@@ -647,7 +682,32 @@ create_new_window (GtkApplication *application,
     setup_header_bar (window, vtterm);
 #endif /* DWT_USE_HEADER_BAR */
 
+#if DWT_USE_OVERLAY
+    GtkWidget *overlay = gtk_overlay_new ();
+    gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (vtterm));
+    gtk_container_add (GTK_CONTAINER (window), overlay);
+
+    GtkWidget *icon = gtk_image_new_from_icon_name ("software-update-urgent-symbolic",
+                                                    GTK_ICON_SIZE_DIALOG);
+    gtk_widget_set_margin_top (icon, 12);
+    gtk_widget_set_margin_end (icon, 12);
+    gtk_widget_set_margin_start (icon, 12);
+    gtk_widget_set_margin_bottom (icon, 12);
+    gtk_widget_set_halign (icon, GTK_ALIGN_END);
+    gtk_widget_set_valign (icon, GTK_ALIGN_START);
+
+    GtkWidget *revealer = gtk_revealer_new ();
+    gtk_container_add (GTK_CONTAINER (revealer), icon);
+    gtk_revealer_set_transition_type (GTK_REVEALER (revealer),
+                                      GTK_REVEALER_TRANSITION_TYPE_CROSSFADE);
+    gtk_revealer_set_transition_duration (GTK_REVEALER (revealer), 250);
+    g_signal_connect (G_OBJECT (vtterm), "beep",
+                      G_CALLBACK (overlay_term_beeped), revealer);
+    gtk_overlay_add_overlay (GTK_OVERLAY (overlay), revealer);
+#else /* !DWT_USE_OVERLAY */
     gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vtterm));
+#endif
+
     gtk_widget_set_receives_default (GTK_WIDGET (vtterm), TRUE);
 
     g_assert (opt_workdir);
