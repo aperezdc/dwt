@@ -591,7 +591,7 @@ static const GActionEntry win_actions[] = {
     { "copy",         copy_action_activated,     NULL, NULL, NULL },
     { "paste",        paste_action_activated,    NULL, NULL, NULL },
     { "copy-url",     copy_url_action_activated, NULL, NULL, NULL },
-    { "open-orl",     open_url_action_activated, NULL, NULL, NULL },
+    { "open-url",     open_url_action_activated, NULL, NULL, NULL },
 };
 
 static const GActionEntry app_actions[] = {
