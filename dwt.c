@@ -375,44 +375,23 @@ setup_header_bar (GtkWidget   *window,
      * Using the default GtkHeaderBar title/subtitle widget makes the bar
      * too thick to look nice for a terminal, so set a custom widget.
      */
+    GtkWidget *hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
+
     GtkWidget *label = gtk_label_new (opt_title);
     g_object_bind_property (G_OBJECT (vtterm), "window-title",
                             G_OBJECT (label), "label",
                             G_BINDING_DEFAULT);
 
-    GtkWidget *header = gtk_header_bar_new ();
-    gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
-    gtk_header_bar_set_has_subtitle (GTK_HEADER_BAR (header), FALSE);
-    gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), label);
+    gtk_widget_set_margin_top (label, 5);
+    gtk_widget_set_margin_bottom (label, 5);
+    gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 0);
 
-    GtkWidget *button = gtk_button_new_from_icon_name ("tab-new-symbolic",
-                                                       GTK_ICON_SIZE_BUTTON);
-    gtk_button_set_focus_on_click (GTK_BUTTON (button), FALSE);
-    gtk_button_set_relief (GTK_BUTTON (button), GTK_RELIEF_NONE);
-    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.new-terminal");
-    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), button);
-
-    GtkWidget *revealer = gtk_revealer_new ();
-    gtk_container_add (GTK_CONTAINER (revealer),
-                       gtk_image_new_from_icon_name ("software-update-urgent-symbolic",
-                                                     GTK_ICON_SIZE_BUTTON));
-    gtk_revealer_set_transition_duration (GTK_REVEALER (revealer), 500);
-    gtk_revealer_set_transition_type (GTK_REVEALER (revealer),
-                                      GTK_REVEALER_TRANSITION_TYPE_CROSSFADE);
-    gtk_header_bar_pack_end (GTK_HEADER_BAR (header), revealer);
-
-    g_signal_connect (G_OBJECT (vtterm), "beep",
-                      G_CALLBACK (header_bar_term_beeped), revealer);
-    g_object_bind_property (G_OBJECT (window), "urgency-hint",
-                            G_OBJECT (revealer), "reveal-child",
-                            G_BINDING_DEFAULT);
-
-    gtk_window_set_titlebar (GTK_WINDOW (window), header);
+    gtk_window_set_titlebar (GTK_WINDOW (window), hbox);
 
     /* Hide the header bar when the window is maximized. */
     if (!opt_showbar) {
         g_object_bind_property (G_OBJECT (window), "is-maximized",
-                                G_OBJECT (header), "visible",
+                                G_OBJECT (hbox), "visible",
                                 G_BINDING_INVERT_BOOLEAN);
     }
 }
