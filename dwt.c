@@ -23,10 +23,6 @@
 #define DWT_USE_POPOVER FALSE
 #endif /* !DWT_USE_POPOVER */
 
-#ifndef DWT_USE_HEADER_BAR
-#define DWT_USE_HEADER_BAR FALSE
-#endif /* !DWT_USE_HEADER_BAR */
-
 #ifndef DWT_USE_OVERLAY
 #define DWT_USE_OVERLAY FALSE
 #endif /* !DWT_USE_OVERLAY */
@@ -47,6 +43,7 @@ static       gchar   *opt_title   = "dwt";
 static       gchar   *opt_font    = DWT_DEFAULT_FONT;
 static       gboolean opt_bold    = FALSE;
 static       gint     opt_scroll  = 1024;
+static       gboolean opt_nohbar  = FALSE;
 
 
 static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
@@ -58,7 +55,9 @@ static gchar *last_match_text = NULL;
 
 /* Forward declarations. */
 static GtkWidget*
-create_new_window (GtkApplication *application, const gchar *command);
+create_new_window (GtkApplication *application,
+                   const gchar    *command,
+                   gboolean        use_header_bar);
 
 
 static const GOptionEntry option_entries[] =
@@ -111,6 +110,13 @@ static const GOptionEntry option_entries[] =
         G_OPTION_ARG_NONE,
         &opt_showbar,
         "Always show title bar when window is maximized.",
+        NULL,
+    }, {
+        "no-header-bar", 'N',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_NONE,
+        &opt_nohbar,
+        "Disable header bars in terminal windows (use window manager decorations)",
         NULL,
     },
     { NULL }
@@ -340,33 +346,6 @@ term_mouse_button_released (VteTerminal    *vtterm,
 }
 
 
-#if DWT_USE_HEADER_BAR || DWT_USE_OVERLAY
-static gboolean
-beeped_revealer_timeout (gpointer userdata)
-{
-    gtk_revealer_set_reveal_child (GTK_REVEALER (userdata), FALSE);
-    return FALSE; /* Do no re-arm (run once) */
-}
-#endif /* DWT_USE_HEADER_BAR || DWT_USE_OVERLAY */
-
-#if DWT_USE_HEADER_BAR
-static void
-header_bar_term_beeped (VteTerminal *vtterm,
-                        GtkRevealer *revealer)
-{
-    /* If already shown, do nothing. */
-    if (gtk_revealer_get_reveal_child (revealer))
-        return;
-
-    GtkWindow *window = GTK_WINDOW (gtk_widget_get_ancestor (GTK_WIDGET (vtterm),
-                                                             GTK_TYPE_WINDOW));
-    if (!gtk_window_has_toplevel_focus (window))
-        return;
-
-    gtk_revealer_set_reveal_child (revealer, TRUE);
-    g_timeout_add_seconds (2, beeped_revealer_timeout, revealer);
-}
-
 static void
 setup_header_bar (GtkWidget   *window,
                   VteTerminal *vtterm)
@@ -395,7 +374,6 @@ setup_header_bar (GtkWidget   *window,
                                 G_BINDING_INVERT_BOOLEAN);
     }
 }
-#endif /* DWT_USE_HEADER_BAR */
 
 
 static void
@@ -499,7 +477,9 @@ new_terminal_action_activated (GSimpleAction *action,
                                GVariant      *parameter,
                                gpointer       userdata)
 {
-    create_new_window (GTK_APPLICATION (userdata), NULL);
+    create_new_window (GTK_APPLICATION (userdata),
+                       NULL,
+                       !opt_nohbar);
 }
 
 
@@ -600,7 +580,8 @@ overlay_term_beeped (GtkWidget   *vtterm,
 
 static GtkWidget*
 create_new_window (GtkApplication *application,
-                   const gchar    *command)
+                   const gchar    *command,
+                   gboolean        use_header_bar)
 {
     if (!command)
         command = guess_shell ();
@@ -621,6 +602,8 @@ create_new_window (GtkApplication *application,
     }
 
     GtkWidget *window = gtk_application_window_new (application);
+    gtk_application_window_set_show_menubar (GTK_APPLICATION_WINDOW (window),
+                                             FALSE);
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
     gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window),
@@ -657,9 +640,8 @@ create_new_window (GtkApplication *application,
                             G_OBJECT (window), "title",
                             G_BINDING_DEFAULT);
 
-#if DWT_USE_HEADER_BAR
-    setup_header_bar (window, vtterm);
-#endif /* DWT_USE_HEADER_BAR */
+    if (use_header_bar)
+        setup_header_bar (window, vtterm);
 
 #if DWT_USE_OVERLAY
     GtkWidget *overlay = gtk_overlay_new ();
@@ -762,7 +744,9 @@ app_command_line_received (GApplication            *application,
     gchar **argv = g_application_command_line_get_arguments (cmdline, &argc);
 
     /* TODO: pass options */
-    create_new_window (GTK_APPLICATION (application), NULL);
+    create_new_window (GTK_APPLICATION (application),
+                       NULL,
+                       !opt_nohbar);
 
     g_strfreev (argv);
     g_application_release (application);
