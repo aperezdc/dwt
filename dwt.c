@@ -23,10 +23,6 @@
 #define DWT_USE_POPOVER FALSE
 #endif /* !DWT_USE_POPOVER */
 
-#ifndef DWT_USE_OVERLAY
-#define DWT_USE_OVERLAY FALSE
-#endif /* !DWT_USE_OVERLAY */
-
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
 #include <vte/vte.h>
@@ -560,24 +556,6 @@ static const GActionEntry app_actions[] = {
 };
 
 
-#if DWT_USE_OVERLAY
-static void
-overlay_term_beeped (GtkWidget   *vtterm,
-                     GtkRevealer *revealer)
-{
-    GtkWindow *window = GTK_WINDOW (gtk_widget_get_ancestor (vtterm,
-                                                             GTK_TYPE_WINDOW));
-
-    if (gtk_window_get_hide_titlebar_when_maximized (window) &&
-        gtk_window_is_maximized (window))
-    {
-        gtk_revealer_set_reveal_child (revealer, TRUE);
-        g_timeout_add_seconds (1, beeped_revealer_timeout, revealer);
-    }
-}
-#endif /* DWT_USE_OVERLAY */
-
-
 static GtkWidget*
 create_new_window (GtkApplication *application,
                    const gchar    *command,
@@ -643,32 +621,7 @@ create_new_window (GtkApplication *application,
     if (use_header_bar)
         setup_header_bar (window, vtterm);
 
-#if DWT_USE_OVERLAY
-    GtkWidget *overlay = gtk_overlay_new ();
-    gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (vtterm));
-    gtk_container_add (GTK_CONTAINER (window), overlay);
-
-    GtkWidget *icon = gtk_image_new_from_icon_name ("software-update-urgent-symbolic",
-                                                    GTK_ICON_SIZE_DIALOG);
-    gtk_widget_set_margin_top (icon, 12);
-    gtk_widget_set_margin_end (icon, 12);
-    gtk_widget_set_margin_start (icon, 12);
-    gtk_widget_set_margin_bottom (icon, 12);
-    gtk_widget_set_halign (icon, GTK_ALIGN_END);
-    gtk_widget_set_valign (icon, GTK_ALIGN_START);
-
-    GtkWidget *revealer = gtk_revealer_new ();
-    gtk_container_add (GTK_CONTAINER (revealer), icon);
-    gtk_revealer_set_transition_type (GTK_REVEALER (revealer),
-                                      GTK_REVEALER_TRANSITION_TYPE_CROSSFADE);
-    gtk_revealer_set_transition_duration (GTK_REVEALER (revealer), 250);
-    g_signal_connect (G_OBJECT (vtterm), "beep",
-                      G_CALLBACK (overlay_term_beeped), revealer);
-    gtk_overlay_add_overlay (GTK_OVERLAY (overlay), revealer);
-#else /* !DWT_USE_OVERLAY */
     gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vtterm));
-#endif
-
     gtk_widget_set_receives_default (GTK_WIDGET (vtterm), TRUE);
 
     g_assert (opt_workdir);
