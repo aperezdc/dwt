@@ -5,8 +5,6 @@
  * Distributed under terms of the MIT license.
  */
 
-#include <gtk/gtk.h>
-
 #ifndef DWT_DEFAULT_FONT
 #define DWT_DEFAULT_FONT "monospace 11"
 #endif /* !DWT_DEFAULT_FONT */
@@ -25,10 +23,12 @@
 
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
-#include <vte/vte.h>
+#include "dg-util.h"
+#include <gtk/gtk.h>
+#include <pwd.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <pwd.h>
+#include <vte/vte.h>
 
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
@@ -270,11 +270,10 @@ setup_popover (VteTerminal *vtterm)
     g_signal_connect (G_OBJECT (popover), "closed",
                       G_CALLBACK (popover_closed), vtterm);
 
-    GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
+    dg_lobj GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_popover_bind_model (GTK_POPOVER (popover),
                             G_MENU_MODEL (gtk_builder_get_object (builder, "popover-menu")),
                             NULL);
-    g_object_unref (builder);
     return popover;
 }
 #else /* !DWT_USE_POPOVER */
@@ -297,11 +296,9 @@ term_mouse_button_released (VteTerminal    *vtterm,
     gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
 
     if (match && event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
-        GError *gerror = NULL;
-        if (!gtk_show_uri (NULL, match, event->time, &gerror)) {
+        dg_lerr GError *gerror = NULL;
+        if (!gtk_show_uri (NULL, match, event->time, &gerror))
             g_printerr ("Could not open URL: %s\n", gerror->message);
-            g_error_free (gerror);
-        }
         g_free (match);
         return TRUE;
     }
@@ -528,11 +525,9 @@ open_url_action_activated (GSimpleAction *action,
                            GVariant      *parameter,
                            gpointer       userdata)
 {
-    GError *gerror = NULL;
-    if (!gtk_show_uri (NULL, last_match_text, GDK_CURRENT_TIME, &gerror)) {
+    dg_lerr GError *gerror = NULL;
+    if (!gtk_show_uri (NULL, last_match_text, GDK_CURRENT_TIME, &gerror))
         g_printerr ("Could not open URL: %s\n", gerror->message);
-        g_error_free (gerror);
-    }
 
     g_free (last_match_text);
     last_match_text = NULL;
@@ -564,7 +559,7 @@ create_new_window (GtkApplication *application,
     if (!command)
         command = guess_shell ();
 
-    GError *gerror = NULL;
+    dg_lerr GError *gerror = NULL;
     gint command_argv_len = 0;
     gchar **command_argv = NULL;
 
@@ -575,7 +570,6 @@ create_new_window (GtkApplication *application,
     {
         g_printerr ("%s: coult not parse command: %s\n",
                     __func__, gerror->message);
-        g_error_free (gerror);
         return NULL;
     }
 
@@ -638,7 +632,6 @@ create_new_window (GtkApplication *application,
     {
         g_printerr ("%s: could not spawn shell: %s\n",
                     __func__, gerror->message);
-        g_error_free (gerror);
         gtk_widget_destroy (window);
         return NULL;
     }
@@ -660,10 +653,9 @@ app_started (GApplication *application)
     g_action_map_add_action_entries (G_ACTION_MAP (application), app_actions,
                                      G_N_ELEMENTS (app_actions), application);
 
-    GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
+    dg_lobj GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_application_set_app_menu (GTK_APPLICATION (application),
         G_MENU_MODEL (gtk_builder_get_object (builder, "app-menu")));
-    g_object_unref (builder);
 
     const struct {
         const gchar *action;
@@ -721,7 +713,7 @@ get_appplication_id (void) {
 int
 main (int argc, char *argv[])
 {
-    GtkApplication *application =
+    dg_lobj GtkApplication *application =
         gtk_application_new (get_appplication_id (),
                              G_APPLICATION_HANDLES_COMMAND_LINE);
 
@@ -733,8 +725,6 @@ main (int argc, char *argv[])
     g_signal_connect (G_OBJECT (application), "command-line",
                       G_CALLBACK (app_command_line_received), NULL);
 
-    gint status = g_application_run (G_APPLICATION (application), argc, argv);
-    g_object_unref (application);
-    return status;
+    return g_application_run (G_APPLICATION (application), argc, argv);
 }
 
