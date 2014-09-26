@@ -3,3 +3,4 @@ dwt
 *.sw[op]
 *.py[co]
 *.gresources.[hc]
+tests/test-settings

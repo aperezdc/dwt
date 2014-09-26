@@ -5,10 +5,6 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef DWT_DEFAULT_FONT
-#define DWT_DEFAULT_FONT "monospace 11"
-#endif /* !DWT_DEFAULT_FONT */
-
 #ifndef DWT_CURSOR_COLOR_FOCUSED
 #define DWT_CURSOR_COLOR_FOCUSED "#00cc00"
 #endif /* !DWT_CURSOR_COLOR_FOCUSED */
@@ -24,6 +20,7 @@
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
 #include "dg-util.h"
+#include "dwt-settings.h"
 #include <gtk/gtk.h>
 #include <pwd.h>
 #include <stdlib.h>
@@ -32,28 +29,20 @@
 
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
 
-static       gboolean opt_showbar = FALSE;
-static const gchar   *opt_workdir = ".";
-static const gchar   *opt_command = NULL;
-static       gchar   *opt_title   = "dwt";
-static       gchar   *opt_font    = DWT_DEFAULT_FONT;
-static       gboolean opt_bold    = FALSE;
-static       gint     opt_scroll  = 1024;
-static       gboolean opt_nohbar  = FALSE;
-
-
 static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
 static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
 /* Last matched text piece. */
 static gchar *last_match_text = NULL;
 
+/* Default font size */
+static gint default_font_size = 0;
+
 
 /* Forward declarations. */
 static GtkWidget*
 create_new_window (GtkApplication *application,
-                   const gchar    *command,
-                   gboolean        use_header_bar);
+                   GVariantDict   *options);
 
 
 static const GOptionEntry option_entries[] =
@@ -62,56 +51,56 @@ static const GOptionEntry option_entries[] =
         "command", 'e',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_STRING,
-        &opt_command,
+        NULL,
         "Execute the argument to this option inside the terminal",
         "COMMAND",
     }, {
         "workdir", 'w',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_STRING,
-        &opt_workdir,
+        NULL,
         "Set working directory before running the command/shell",
         "PATH",
     }, {
         "font", 'f',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_STRING,
-        &opt_font,
+        NULL,
         "Font used by the terminal, in FontConfig syntax",
         "FONT",
     }, {
         "title", 't',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_STRING,
-        &opt_title,
+        NULL,
         "Initial terminal window title",
         "TITLE",
     }, {
         "scrollback", 's',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_INT,
-        &opt_scroll,
+        NULL,
         "Scrollback buffer size, in bytes (default 1024)",
         "BYTES"
     }, {
         "bold", 'b',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_NONE,
-        &opt_bold,
+        NULL,
         "Allow using bold fonts",
         NULL,
     }, {
         "title-on-maximize", 'H',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_NONE,
-        &opt_showbar,
+        NULL,
         "Always show title bar when window is maximized.",
         NULL,
     }, {
         "no-header-bar", 'N',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_NONE,
-        &opt_nohbar,
+        NULL,
         "Disable header bars in terminal windows (use window manager decorations)",
         NULL,
     },
@@ -150,25 +139,44 @@ static const GdkColor color_fg = { 0, 0xdddd, 0xdddd, 0xdddd };
 /* Regexp used to match URIs and allow clicking them */
 static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
 
-/* Characters considered part of a word. Simplifies double-click selection */
-static const gchar word_chars[] = "-A-Za-z0-9,./?%&#@_~";
-
 
 static void
-configure_term_widget (VteTerminal *vtterm)
+configure_term_widget (VteTerminal  *vtterm,
+                       GVariantDict *options)
 {
-    g_assert (opt_font);
+    /* Pick default settings from the settings... */
+    DwtSettings *settings   = dwt_settings_get_instance ();
+    const gchar *opt_font   = dwt_settings_get_font (settings);
+    gboolean     opt_bold   = dwt_settings_get_allow_bold (settings);
+    guint        opt_scroll = dwt_settings_get_scrollback (settings);
+
+    /* ...and allow command line options to override them. */
+    if (options) {
+        g_variant_dict_lookup (options, "font",       "&s", &opt_font);
+        g_variant_dict_lookup (options, "allow-bold", "b",  &opt_bold);
+        g_variant_dict_lookup (options, "scrollback", "u",  &opt_scroll);
+    }
+
+    g_printerr ("font (final): %s\n", opt_font);
+
+    PangoFontDescription *fontd = pango_font_description_from_string (opt_font);
+    if (fontd) {
+      if (!pango_font_description_get_family (fontd))
+        pango_font_description_set_family_static (fontd, "monospace");
+      if (!pango_font_description_get_size (fontd))
+        pango_font_description_set_size (fontd, 12 * PANGO_SCALE);
+      vte_terminal_set_font (vtterm, fontd);
+      pango_font_description_free (fontd);
+      fontd = NULL;
+    }
 
     vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
     vte_terminal_set_mouse_autohide      (vtterm, FALSE);
-    vte_terminal_set_visible_bell        (vtterm, FALSE);
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
-    vte_terminal_set_font_from_string    (vtterm, opt_font);
     vte_terminal_set_allow_bold          (vtterm, opt_bold);
     vte_terminal_set_scrollback_lines    (vtterm, opt_scroll);
-    vte_terminal_set_word_chars          (vtterm, word_chars);
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
     vte_terminal_set_colors              (vtterm,
@@ -293,13 +301,12 @@ term_mouse_button_released (VteTerminal    *vtterm,
     glong col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
 
     gint match_tag;
-    gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
+    dg_lmem gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
 
     if (match && event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
         dg_lerr GError *gerror = NULL;
         if (!gtk_show_uri (NULL, match, event->time, &gerror))
             g_printerr ("Could not open URL: %s\n", gerror->message);
-        g_free (match);
         return TRUE;
     }
 
@@ -341,15 +348,16 @@ term_mouse_button_released (VteTerminal    *vtterm,
 
 static void
 setup_header_bar (GtkWidget   *window,
-                  VteTerminal *vtterm)
+                  VteTerminal *vtterm,
+                  gboolean     show_maximized_title)
 {
     /*
      * Using the default GtkHeaderBar title/subtitle widget makes the bar
      * too thick to look nice for a terminal, so set a custom widget.
      */
     GtkWidget *hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
-
-    GtkWidget *label = gtk_label_new (opt_title);
+    const gchar *title = gtk_window_get_title (GTK_WINDOW (window));
+    GtkWidget *label = gtk_label_new (title ? title : "dwt");
     g_object_bind_property (G_OBJECT (vtterm), "window-title",
                             G_OBJECT (label), "label",
                             G_BINDING_DEFAULT);
@@ -361,7 +369,7 @@ setup_header_bar (GtkWidget   *window,
     gtk_window_set_titlebar (GTK_WINDOW (window), hbox);
 
     /* Hide the header bar when the window is maximized. */
-    if (!opt_showbar) {
+    if (!show_maximized_title) {
         g_object_bind_property (G_OBJECT (window), "is-maximized",
                                 G_OBJECT (hbox), "visible",
                                 G_BINDING_INVERT_BOOLEAN);
@@ -421,27 +429,29 @@ font_size_action_ativated (GSimpleAction *action,
 
     const PangoFontDescription *fontd = vte_terminal_get_font (vtterm);
     gint old_size = pango_font_description_get_size (fontd);
+    if (default_font_size == 0)
+      default_font_size = old_size;
     PangoFontDescription *new_fontd;
     gint new_size;
 
     switch (modifier) {
       case 0:
-        vte_terminal_set_font_from_string (vtterm, opt_font);
-        break;
-
+        old_size = default_font_size;
+        /* fall-through */
       case 1:
       case -1:
         new_size = old_size + modifier * PANGO_SCALE;
         new_fontd = pango_font_description_copy_static (fontd);
         pango_font_description_set_size (new_fontd, new_size);
         vte_terminal_set_font (vtterm, new_fontd);
-        pango_font_description_free (new_fontd);
         break;
 
       default:
         g_printerr ("%s: invalid modifier '%i'", __func__, modifier);
         return;
     }
+
+    pango_font_description_free (new_fontd);
 }
 
 
@@ -470,9 +480,7 @@ new_terminal_action_activated (GSimpleAction *action,
                                GVariant      *parameter,
                                gpointer       userdata)
 {
-    create_new_window (GTK_APPLICATION (userdata),
-                       NULL,
-                       !opt_nohbar);
+    create_new_window (GTK_APPLICATION (userdata), NULL);
 }
 
 
@@ -553,17 +561,31 @@ static const GActionEntry app_actions[] = {
 
 static GtkWidget*
 create_new_window (GtkApplication *application,
-                   const gchar    *command,
-                   gboolean        use_header_bar)
+                   GVariantDict   *options)
 {
-    if (!command)
-        command = guess_shell ();
+    DwtSettings *settings     = dwt_settings_get_instance ();
+    gboolean opt_show_title   = dwt_settings_get_show_title (settings);
+    gboolean opt_no_headerbar = dwt_settings_get_no_header_bar (settings);
+    const gchar *opt_workdir  = NULL;
+    const gchar *opt_command  = NULL;
+    const gchar *opt_title    = NULL;
+
+    if (options) {
+        g_variant_dict_lookup (options, "title-on-maximize", "b", &opt_show_title);
+        g_variant_dict_lookup (options, "no-header-bar", "b", &opt_no_headerbar);
+        g_variant_dict_lookup (options, "workdir", "&s", &opt_workdir);
+        g_variant_dict_lookup (options, "command", "&s", &opt_command);
+        g_variant_dict_lookup (options, "title",   "&s", &opt_title);
+    }
+    if (!opt_workdir) opt_workdir = g_get_home_dir ();
+    if (!opt_command) opt_command = guess_shell ();
+    if (!opt_title) opt_title = "dwt";
 
     dg_lerr GError *gerror = NULL;
     gint command_argv_len = 0;
     gchar **command_argv = NULL;
 
-    if (!g_shell_parse_argv (command,
+    if (!g_shell_parse_argv (opt_command,
                              &command_argv_len,
                              &command_argv,
                              &gerror))
@@ -579,13 +601,13 @@ create_new_window (GtkApplication *application,
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
     gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window),
-                                                 !opt_showbar);
+                                                 !opt_show_title);
 
     g_action_map_add_action_entries (G_ACTION_MAP (window), win_actions,
                                      G_N_ELEMENTS (win_actions), window);
 
     VteTerminal *vtterm = VTE_TERMINAL (vte_terminal_new ());
-    configure_term_widget (vtterm);
+    configure_term_widget (vtterm, options);
     term_char_size_changed (vtterm,
                             vte_terminal_get_char_width (vtterm),
                             vte_terminal_get_char_height (vtterm),
@@ -599,7 +621,7 @@ create_new_window (GtkApplication *application,
                       G_CALLBACK (term_char_size_changed), window);
     g_signal_connect (G_OBJECT (vtterm), "child-exited",
                       G_CALLBACK (term_child_exited), window);
-    g_signal_connect (G_OBJECT (vtterm), "beep",
+    g_signal_connect (G_OBJECT (vtterm), "bell",
                       G_CALLBACK (term_beeped), window);
     g_signal_connect (G_OBJECT (vtterm), "button-release-event",
                       G_CALLBACK (term_mouse_button_released),
@@ -612,23 +634,24 @@ create_new_window (GtkApplication *application,
                             G_OBJECT (window), "title",
                             G_BINDING_DEFAULT);
 
-    if (use_header_bar)
-        setup_header_bar (window, vtterm);
+    if (!opt_no_headerbar)
+        setup_header_bar (window, vtterm, opt_show_title);
 
     gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vtterm));
     gtk_widget_set_receives_default (GTK_WIDGET (vtterm), TRUE);
 
-    g_assert (opt_workdir);
-    if (!vte_terminal_fork_command_full (VTE_TERMINAL (vtterm),
-                                         VTE_PTY_DEFAULT,
-                                         opt_workdir,
-                                         command_argv,
-                                         NULL,
-                                         G_SPAWN_SEARCH_PATH,
-                                         NULL,
-                                         NULL,
-                                         NULL,
-                                         &gerror))
+    GPid child_pid;
+    if (!vte_terminal_spawn_sync (VTE_TERMINAL (vtterm),
+                                  VTE_PTY_DEFAULT,
+                                  opt_workdir,
+                                  command_argv,
+                                  NULL,
+                                  G_SPAWN_SEARCH_PATH,
+                                  NULL,
+                                  NULL,
+                                  &child_pid,
+                                  NULL,
+                                  &gerror))
     {
         g_printerr ("%s: could not spawn shell: %s\n",
                     __func__, gerror->message);
@@ -636,6 +659,7 @@ create_new_window (GtkApplication *application,
         return NULL;
     }
 
+    vte_terminal_watch_child (VTE_TERMINAL (vtterm), child_pid);
     gtk_widget_show_all (window);
     return window;
 }
@@ -685,15 +709,11 @@ app_command_line_received (GApplication            *application,
 {
     g_application_hold (G_APPLICATION (application));
 
-    gint argc = 0;
-    gchar **argv = g_application_command_line_get_arguments (cmdline, &argc);
+    GVariantDict *options = g_application_command_line_get_options_dict (cmdline);
 
-    /* TODO: pass options */
-    create_new_window (GTK_APPLICATION (application),
-                       NULL,
-                       !opt_nohbar);
+    create_new_window (GTK_APPLICATION (application), options);
 
-    g_strfreev (argv);
+    g_variant_dict_unref (options);
     g_application_release (application);
     return 0;
 }

@@ -9,7 +9,7 @@ CPPFLAGS    += -DG_DISABLE_DEPRECATED   \
                -DGTK_DISABLE_DEPRECATED \
                -DVTE_DISABLE_DEPRECATED \
                -DPREFIX=\"$(PREFIX)\"
-PKG_MODULES := vte-2.90
+PKG_MODULES := vte-2.91
 PKG_CFLAGS  := $(shell pkg-config --cflags $(PKG_MODULES))
 PKG_LDLIBS  := $(shell pkg-config --libs   $(PKG_MODULES))
 
@@ -17,7 +17,7 @@ all: dwt dwt.1 dwt.desktop
 
 dwt: CFLAGS += $(PKG_CFLAGS)
 dwt: LDLIBS += $(PKG_LDLIBS)
-dwt: dwt.o dirdb.o dwt.gresources.o
+dwt: dwt.o dirdb.o dwt-settings.o dwt.gresources.o
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
@@ -34,7 +34,7 @@ dwt.gresources.o: menus.xml
 	glib-compile-resources --generate-header --target=$@ $<
 
 clean:
-	$(RM) dwt dwt.gresources.o dwt.gresources.h dwt.gresources.c dwt.o dirdb.o
+	$(RM) dwt dwt.gresources.o dwt.gresources.h dwt.gresources.c dwt.o dirdb.o dwt-settings.o
 
 install: all
 	install -m 755 -d $(DESTDIR)$(PREFIX)/bin
@@ -43,6 +43,13 @@ install: all
 	install -m 644 -t $(DESTDIR)$(PREFIX)/man/man1 dwt.1
 	install -m 755 -d $(DESTDIR)$(PREFIX)/share/applications
 	install -m 644 -t $(DESTDIR)$(PREFIX)/share/applications dwt.desktop
+
+tests: CFLAGS += $(PKG_CFLAGS)
+tests: LDLIBS += $(PKG_LDLIBS)
+tests: tests/test-settings
+tests/test-settings: tests/test-settings.c dg-settings.c
+
+.PHONY: tests
 
 ifeq ($(origin TAG),command line)
 VERSION := $(TAG)

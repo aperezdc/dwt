@@ -54,6 +54,15 @@ Command line options:
 
 -b, --bold    Allow usage of bold font variants.
 
+-N, --no-header-bar
+              Disable using a custom header bar widget, and let the window
+              manager use its own decorations instead. This may be useful
+              to make ``dwt`` blend better with your desktop environment.
+
+-H, --title-on-maximize
+              Keep a title bar in maximized windows. The default is to
+              disable the title bar.
+
 -h, --help    Show a summary of available options.
 
 

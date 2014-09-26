@@ -18,7 +18,7 @@ static inline void
 dg_lmem_cleanup (void *ptr)
 {
     gpointer **location = ptr;
-    if (location) {
+    if (location && *location) {
         g_free (*location);
         *location = NULL;
     }
@@ -28,7 +28,7 @@ static inline void
 dg_lobj_cleanup (void *ptr)
 {
     GObject **location = ptr;
-    if (location) {
+    if (location && *location) {
         g_object_unref (*location);
         *location = NULL;
     }
