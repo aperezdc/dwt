@@ -5,14 +5,6 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef DWT_CURSOR_COLOR_FOCUSED
-#define DWT_CURSOR_COLOR_FOCUSED "#00cc00"
-#endif /* !DWT_CURSOR_COLOR_FOCUSED */
-
-#ifndef DWT_CURSOR_COLOR_UNFOCUSED
-#define DWT_CURSOR_COLOR_UNFOCUSED "#999999"
-#endif /* !DWT_CURSOR_COLOR_UNFOCUSED */
-
 #ifndef DWT_USE_POPOVER
 #define DWT_USE_POPOVER FALSE
 #endif /* !DWT_USE_POPOVER */
@@ -28,9 +20,6 @@
 #include <vte/vte.h>
 
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
-
-static const gchar osc_cursor_unfocused[] = "]12;" DWT_CURSOR_COLOR_UNFOCUSED "";
-static const gchar osc_cursor_focused[]   = "]12;" DWT_CURSOR_COLOR_FOCUSED   "";
 
 /* Last matched text piece. */
 static gchar *last_match_text = NULL;
@@ -112,29 +101,40 @@ static const GOptionEntry option_entries[] =
  * Set of colors as used by GNOME-Terminal for the “Linux” color scheme:
  * http://git.gnome.org/browse/gnome-terminal/tree/src/terminal-profile.c
  */
-static const GdkColor color_palette[] =
+static const GdkRGBA color_palette[] =
 {
-    { 0, 0x0000, 0x0000, 0x0000 },
-    { 0, 0xaaaa, 0x0000, 0x0000 },
-    { 0, 0x0000, 0xaaaa, 0x0000 },
-    { 0, 0xaaaa, 0x5555, 0x0000 },
-    { 0, 0x0000, 0x0000, 0xaaaa },
-    { 0, 0xaaaa, 0x0000, 0xaaaa },
-    { 0, 0x0000, 0xaaaa, 0xaaaa },
-    { 0, 0xaaaa, 0xaaaa, 0xaaaa },
-    { 0, 0x5555, 0x5555, 0x5555 },
-    { 0, 0xffff, 0x5555, 0x5555 },
-    { 0, 0x5555, 0xffff, 0x5555 },
-    { 0, 0xffff, 0xffff, 0x5555 },
-    { 0, 0x5555, 0x5555, 0xffff },
-    { 0, 0xffff, 0x5555, 0xffff },
-    { 0, 0x5555, 0xffff, 0xffff },
-    { 0, 0xffff, 0xffff, 0xffff },
+  { 0,        0,        0,        1 },
+  { 0.666667, 0,        0,        1 },
+  { 0,        0.666667, 0,        1 },
+  { 0.666667, 0.333333, 0,        1 },
+  { 0,        0,        0.666667, 1 },
+  { 0.666667, 0,        0.666667, 1 },
+  { 0,        0.666667, 0.666667, 1 },
+  { 0.666667, 0.666667, 0.666667, 1 },
+  { 0.333333, 0.333333, 0.333333, 1 },
+  { 1,        0.333333, 0.333333, 1 },
+  { 0.333333, 1,        0.333333, 1 },
+  { 1,        1,        0.333333, 1 },
+  { 0.333333, 0.333333, 1,        1 },
+  { 1,        0.333333, 1,        1 },
+  { 0.333333, 1,        1,        1 },
+  { 1,        1,        1,        1 },
 };
 
+#ifndef DWT_CURSOR_COLOR_FOCUSED
+#define DWT_CURSOR_COLOR_FOCUSED "#00cc00"
+#endif /* !DWT_CURSOR_COLOR_FOCUSED */
+
+#ifndef DWT_CURSOR_COLOR_UNFOCUSED
+#define DWT_CURSOR_COLOR_UNFOCUSED "#999999"
+#endif /* !DWT_CURSOR_COLOR_UNFOCUSED */
+
+static const GdkRGBA cursor_active   = {   0, 0.75,   0, 1 };
+static const GdkRGBA cursor_inactive = { 0.6,  0.6, 0.6, 1 };
+
 /* Use light grey on black */
-static const GdkColor color_bg = { 0, 0x0000, 0x0000, 0x0000 };
-static const GdkColor color_fg = { 0, 0xdddd, 0xdddd, 0xdddd };
+static const GdkRGBA color_fg = { 0.8, 0.8, 0.8, 1 };
+static const GdkRGBA color_bg = {   0,   0,   0, 1 };
 
 /* Regexp used to match URIs and allow clicking them */
 static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
@@ -383,15 +383,13 @@ window_has_toplevel_focus_notified (GObject    *object,
                                     gpointer    userdata)
 {
     if (gtk_window_has_toplevel_focus (GTK_WINDOW (object))) {
-        vte_terminal_feed (VTE_TERMINAL (userdata),
-                           osc_cursor_focused,
-                           sizeof (osc_cursor_focused));
+        vte_terminal_set_color_cursor (VTE_TERMINAL (userdata),
+                                       &cursor_active);
         /* Clear the _URGENT hint when the window gets activated. */
         gtk_window_set_urgency_hint (GTK_WINDOW (object), FALSE);
     } else {
-        vte_terminal_feed (VTE_TERMINAL (userdata),
-                           osc_cursor_unfocused,
-                           sizeof (osc_cursor_unfocused));
+        vte_terminal_set_color_cursor (VTE_TERMINAL (userdata),
+                                       &cursor_inactive);
     }
 }
 
