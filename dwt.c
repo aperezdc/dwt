@@ -5,10 +5,6 @@
  * Distributed under terms of the MIT license.
  */
 
-#ifndef DWT_USE_POPOVER
-#define DWT_USE_POPOVER FALSE
-#endif /* !DWT_USE_POPOVER */
-
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
 #include "dg-util.h"
@@ -255,7 +251,6 @@ guess_shell (void)
 }
 
 
-#if DWT_USE_POPOVER
 static gboolean
 popover_idle_closed_tick (gpointer userdata)
 {
@@ -284,9 +279,6 @@ setup_popover (VteTerminal *vtterm)
                             NULL);
     return popover;
 }
-#else /* !DWT_USE_POPOVER */
-# define setup_popover(_vtterm) NULL
-#endif /* DWT_USE_POPOVER */
 
 
 static gboolean
@@ -311,7 +303,6 @@ term_mouse_button_released (VteTerminal    *vtterm,
     }
 
 
-#if DWT_USE_POPOVER
     if (event->button == 3 && userdata != NULL) {
         GdkRectangle rect;
         rect.height = vte_terminal_get_char_height (vtterm);
@@ -340,7 +331,6 @@ term_mouse_button_released (VteTerminal    *vtterm,
 
         return TRUE;
     }
-#endif /* DWT_USE_POPOVER */
 
     return FALSE;
 }

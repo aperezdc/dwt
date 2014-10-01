@@ -15,7 +15,7 @@ Screenshot
 (Non-)Features
 ==============
 
-* Fixed configuration:
+* Mostly-fixed configuration:
 
   - Grey on black color scheme with using Linux console color set.
 
@@ -32,21 +32,6 @@ Screenshot
 
   - Mouse cursor auto-hide.
 
-* Some build-time configuration. The following defines can be added in
-  ``$CPPFLAGS``:
-
-  - ``DWT_DEFAULT_FONT="FontName"`` (default: ``monospace 11``).
-
-  - ``DWT_USE_POPOVER=TRUE`` (disabled by default): Uses
-    `GtkPopover <https://developer.gnome.org/gtk3/stable/GtkPopover.html>`__
-    to provide a contextual menu.
-
-  - ``DWT_USE_USE_HEADER_BAR=TRUE`` (disabled by default): Uses
-    a `GtkHeaderBar <https://developer.gnome.org/gtk3/stable/GtkHeaderBar.html>`__
-    for the title bar of the window. The bar includes a “New Terminal”
-    button, and terminal beeps make an “attention” icon display for an
-    instant in the right side of the header bar.
-
 * XTerm-style configurable window title.
 
 * Clickable URLs. Because on the Internet era being able to quickly open
@@ -59,6 +44,38 @@ Screenshot
 * Uses current GTK+ widgets and code conventions. Apart from the popover
   and header bar widgets, modern facilities like ``GAction``, property
   bindings, and ``GtkApplication`` are used.
+
+
+Configuration
+=============
+
+Some settings are configurable. Each setting is located in a file under
+``$XDG_CONFIG_HOME/dwt/``. The following settings can be defined:
+
+``allow-bold``
+  If this file exists, bold fonts are allowed. This can be overriden
+  with the ``-b`` / ``--bold`` command line flag.
+
+``show-title``
+  If this file exists, maximized windows keep a title bar instead of hiding
+  it. This can be overriden with the ``-H`` / ``--title-on-maximize``
+  command line flag.
+
+``no-header-bar``
+  If this file exists, a DWT will let the window manager decorate the
+  windows, instead of using a header bar provided by itself. This can be
+  overriden with the ``-N`` / ``--no-header-bar`` command line flag.
+
+``scrollback``
+  The number of lines saved in the scrollback buffer. The first line of the
+  file is interpreted as an unsigned integer. This can be overriden with the
+  ``-s`` / ``--scrollback`` command line flag.
+
+``font``
+  Name and characteristics of the font used by the terminal windows. Only
+  the first line of the file is read. This can be overriden with the ``-f``
+  / ``--font`` command line flag.
+
 
 .. _VTE: http://developer.gnome.org/vte/
 .. _DWM: http://dwm.suckless.org/
