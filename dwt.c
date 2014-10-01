@@ -597,7 +597,6 @@ create_new_window (GtkApplication *application,
     gtk_application_window_set_show_menubar (GTK_APPLICATION_WINDOW (window),
                                              FALSE);
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
-    gtk_window_set_has_resize_grip (GTK_WINDOW (window), FALSE);
     gtk_window_set_hide_titlebar_when_maximized (GTK_WINDOW (window),
                                                  !opt_show_title);
 
