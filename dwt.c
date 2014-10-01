@@ -386,6 +386,7 @@ window_has_toplevel_focus_notified (GObject    *object,
 
 static void
 term_child_exited (VteTerminal *vtterm,
+                   gint         status,
                    gpointer     userdata)
 {
     /*
@@ -393,7 +394,7 @@ term_child_exited (VteTerminal *vtterm,
      * will fire the "delete-event" signal, and its handler already takes
      * care of deregistering the window in the GtkApplication.
      */
-    gtk_widget_destroy (GTK_WIDGET (userdata));
+    gtk_window_close (GTK_WINDOW (userdata));
 }
 
 
