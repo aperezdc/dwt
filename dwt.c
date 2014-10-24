@@ -146,6 +146,8 @@ configure_term_widget (VteTerminal  *vtterm,
     gboolean     opt_bold   = dwt_settings_get_allow_bold (settings);
     guint        opt_scroll = dwt_settings_get_scrollback (settings);
 
+    g_printerr ("font (from settings): %s\n", opt_font);
+
     /* ...and allow command line options to override them. */
     if (options) {
         g_variant_dict_lookup (options, "font",       "&s", &opt_font);

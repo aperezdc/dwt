@@ -32,13 +32,62 @@ G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (DgSettings, dg_settings, G_TYPE_OBJECT)
 static GParamSpec *properties[PROP_N] = { NULL, };
 
 
+static gchar*
+read_line (GFile *file)
+{
+    g_assert (file != NULL);
+
+    dg_lerr GError *error = NULL;
+    dg_lobj GInputStream *stream = G_INPUT_STREAM (g_file_read (file, NULL, &error));
+
+    if (!stream && error)
+        return NULL;
+
+    dg_lobj GDataInputStream *datain = g_data_input_stream_new (stream);
+    gsize read_length = 0;
+
+    return g_data_input_stream_read_line_utf8 (datain,
+                                               &read_length,
+                                               NULL,
+                                               &error);
+}
+
+
+static gboolean
+read_boolean (GFile *file)
+{
+    dg_lmem gchar *line = read_line (file);
+    return line && g_ascii_strcasecmp ("false", line) != 0;
+}
+
+
 void
 dg_settings__get_property__ (GObject    *object,
                              guint       prop_id,
                              GValue     *value,
                              GParamSpec *pspec)
 {
-  g_printerr ("%s, id=%u\n", __func__, prop_id);
+    DgSettingsPrivate *priv = dg_settings_get_instance_private (DG_SETTINGS (object));
+
+    dg_lobj GFile* setting_file = g_file_get_child (priv->settings_path,
+                                                    g_param_spec_get_name (pspec));
+    dg_lmem gchar* setting_path = g_file_get_path (setting_file);
+
+    /* Use the default value when the file does not exist */
+    if (!g_file_query_exists (setting_file, NULL)) {
+        g_value_copy (g_param_spec_get_default_value (pspec), value);
+        return;
+    }
+
+    /* Try to read the value from the file, converting as appropriate. */
+    switch (G_PARAM_SPEC_VALUE_TYPE (pspec)) {
+        case G_TYPE_BOOLEAN:
+            g_value_set_boolean (value, read_boolean (setting_file));
+            break;
+        case G_TYPE_STRING:
+            g_value_take_string (value, read_line (setting_file));
+            break;
+    }
 }
 
 
@@ -91,7 +140,8 @@ static void
 dg_settings_finalize (GObject *object)
 {
   DgSettingsPrivate *priv = dg_settings_get_instance_private (DG_SETTINGS (object));
-  g_object_unref (priv->monitor);
+  if (priv->monitor_enabled)
+      g_object_unref (priv->monitor);
   g_object_unref (priv->settings_path);
   G_OBJECT_CLASS (dg_settings_parent_class)->finalize (object);
 }
@@ -119,20 +169,6 @@ dg_settings_monitor_changed (GFileMonitor      *monitor,
 void
 dg_settings__constructed__ (GObject *object)
 {
-  guint n_properties = 0;
-  GParamSpec **props = g_object_class_list_properties (G_OBJECT_GET_CLASS (object),
-                                                       &n_properties);
-  g_printerr ("%s, %u properties\n", __func__, n_properties);
-
-  guint n_settings = 0;
-  for (guint i = 0; i < n_properties; i++) {
-    g_printerr ("  - %s%s\n",
-                g_param_spec_get_name (props[i]),
-                (props[i]->flags & DG_SETTING__FLAG) ? " [setting]" : "");
-    if (props[i]->flags & DG_SETTING__FLAG)
-      n_properties++;
-  }
-
   DgSettingsPrivate *priv = dg_settings_get_instance_private (DG_SETTINGS (object));
 
   g_assert (priv->settings_path);
@@ -163,7 +199,6 @@ dg_settings__constructed__ (GObject *object)
 static void
 dg_settings_class_init (DgSettingsClass *klass)
 {
-  g_printerr ("%s\n", __func__);
   GObjectClass *g_object_class = G_OBJECT_CLASS (klass);
   g_object_class->get_property = dg_settings_get_property;
   g_object_class->set_property = dg_settings_set_property;
