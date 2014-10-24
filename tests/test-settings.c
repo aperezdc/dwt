@@ -17,6 +17,7 @@
 DG_SETTINGS_CLASS_DECLARE (TestSettings, test_settings)
 DG_SETTINGS_CLASS_DEFINE (TestSettings, test_settings)
   DG_SETTINGS_BOOLEAN ("foo", "Foo", "Foo", FALSE);
+  DG_SETTINGS_UINT    ("baz", "Baz", "Baz", 12345);
   DG_SETTINGS_STRING  ("bar", "Bar", "Bar", "BAR");
 DG_SETTINGS_CLASS_END
 
@@ -56,15 +57,18 @@ test_settings_read_defaults (void)
 
     gboolean bool_value;
     gchar* string_value = NULL;
+    guint uint_value = 0;
 
     g_object_get (G_OBJECT (settings),
                   "foo", &bool_value,
                   "bar", &string_value,
+                  "baz", &uint_value,
                   NULL);
     g_test_queue_free (string_value);
 
     g_assert_false (bool_value);
     g_assert_cmpstr (string_value, ==, "BAR");
+    g_assert_cmpuint (uint_value, ==, 12345);
 }
 
 
@@ -93,21 +97,25 @@ test_settings_read (void)
     const gchar* settings_path = temporary_settings_dir ();
     populate_setting (settings_path, "foo", "TRUE");
     populate_setting (settings_path, "bar", "Kitteh sez: meow!");
+    populate_setting (settings_path, "baz", "42");
 
     TestSettings *settings = test_settings_new (settings_path, FALSE);
     g_test_queue_unref (settings);
 
     gboolean bool_value;
     gchar* string_value = NULL;
+    guint uint_value = 0;
 
     g_object_get (G_OBJECT (settings),
                   "foo", &bool_value,
                   "bar", &string_value,
+                  "baz", &uint_value,
                   NULL);
     g_test_queue_free (string_value);
 
     g_assert_true (bool_value);
     g_assert_cmpstr (string_value, ==, "Kitteh sez: meow!");
+    g_assert_cmpuint (uint_value, ==, 42);
 }
 
 

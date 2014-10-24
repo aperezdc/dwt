@@ -53,11 +53,27 @@ read_line (GFile *file)
 }
 
 
-static gboolean
-read_boolean (GFile *file)
+static void
+read_boolean (GFile *file, GValue *value)
 {
     dg_lmem gchar *line = read_line (file);
-    return line && g_ascii_strcasecmp ("false", line) != 0;
+    if (line == NULL)
+        return;
+
+    g_value_set_boolean (value, g_ascii_strcasecmp ("false", line) != 0);
+}
+
+
+static void
+read_uint (GFile *file, GValue *value)
+{
+    dg_lmem gchar *line = read_line (file);
+    if (line == NULL)
+        return;
+
+    guint64 uint_value = g_ascii_strtoull (line, NULL, 0);
+    if (uint_value <= G_MAXUINT)
+        g_value_set_uint (value, uint_value);
 }
 
 
@@ -74,15 +90,17 @@ dg_settings__get_property__ (GObject    *object,
     dg_lmem gchar* setting_path = g_file_get_path (setting_file);
 
     /* Use the default value when the file does not exist */
-    if (!g_file_query_exists (setting_file, NULL)) {
-        g_value_copy (g_param_spec_get_default_value (pspec), value);
+    g_value_copy (g_param_spec_get_default_value (pspec), value);
+    if (!g_file_query_exists (setting_file, NULL))
         return;
-    }
 
     /* Try to read the value from the file, converting as appropriate. */
     switch (G_PARAM_SPEC_VALUE_TYPE (pspec)) {
         case G_TYPE_BOOLEAN:
-            g_value_set_boolean (value, read_boolean (setting_file));
+            read_boolean (setting_file, value);
+            break;
+        case G_TYPE_UINT:
+            read_uint (setting_file, value);
             break;
         case G_TYPE_STRING:
             g_value_take_string (value, read_line (setting_file));

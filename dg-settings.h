@@ -59,6 +59,17 @@ void dg_settings__constructed__  (GObject    *object);
                                                         (_default),     \
                                                         DG_SETTING_FLAGS))
 
+#define DG_SETTINGS_UINT(_name, _nick, _desc, _default)       \
+  g_object_class_install_property (G_OBJECT_CLASS (klass),     \
+                                   ++klass->prop_id,            \
+                                   g_param_spec_uint ((_name),   \
+                                                      (_nick),    \
+                                                      (_desc),     \
+                                                      0,            \
+                                                      G_MAXUINT,     \
+                                                      (_default),     \
+                                                      DG_SETTING_FLAGS))
+
 #define DG_SETTINGS_CLASS_DECLARE(_T, _t)                               \
   typedef struct _ ## _T ## Class _T ## Class;                          \
   typedef struct _ ## _T _T;                                            \
