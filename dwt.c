@@ -141,12 +141,15 @@ configure_term_widget (VteTerminal  *vtterm,
                        GVariantDict *options)
 {
     /* Pick default settings from the settings... */
-    DwtSettings *settings   = dwt_settings_get_instance ();
-    const gchar *opt_font   = dwt_settings_get_font (settings);
-    gboolean     opt_bold   = dwt_settings_get_allow_bold (settings);
-    guint        opt_scroll = dwt_settings_get_scrollback (settings);
+    dg_lmem gchar *opt_font = NULL;
+    gboolean opt_bold;
+    guint opt_scroll;
 
-    g_printerr ("font (from settings): %s\n", opt_font);
+    g_object_get (dwt_settings_get_instance (),
+                  "font", &opt_font,
+                  "allow-bold", &opt_bold,
+                  "scrollback", &opt_scroll,
+                  NULL);
 
     /* ...and allow command line options to override them. */
     if (options) {
@@ -154,8 +157,6 @@ configure_term_widget (VteTerminal  *vtterm,
         g_variant_dict_lookup (options, "allow-bold", "b",  &opt_bold);
         g_variant_dict_lookup (options, "scrollback", "u",  &opt_scroll);
     }
-
-    g_printerr ("font (final): %s\n", opt_font);
 
     PangoFontDescription *fontd = pango_font_description_from_string (opt_font);
     if (fontd) {
@@ -554,12 +555,17 @@ static GtkWidget*
 create_new_window (GtkApplication *application,
                    GVariantDict   *options)
 {
-    DwtSettings *settings     = dwt_settings_get_instance ();
-    gboolean opt_show_title   = dwt_settings_get_show_title (settings);
-    gboolean opt_no_headerbar = dwt_settings_get_no_header_bar (settings);
-    const gchar *opt_workdir  = NULL;
-    const gchar *opt_command  = NULL;
-    const gchar *opt_title    = NULL;
+    gboolean opt_show_title;
+    gboolean opt_no_headerbar;
+
+    g_object_get (dwt_settings_get_instance (),
+                  "show-title", &opt_show_title,
+                  "no-header-bar", &opt_no_headerbar,
+                  NULL);
+
+    const gchar *opt_workdir = NULL;
+    const gchar *opt_command = NULL;
+    const gchar *opt_title   = NULL;
 
     if (options) {
         g_variant_dict_lookup (options, "title-on-maximize", "b", &opt_show_title);
@@ -698,11 +704,8 @@ app_command_line_received (GApplication            *application,
                            GApplicationCommandLine *cmdline)
 {
     g_application_hold (G_APPLICATION (application));
-
     GVariantDict *options = g_application_command_line_get_options_dict (cmdline);
-
     create_new_window (GTK_APPLICATION (application), options);
-
     g_variant_dict_unref (options);
     g_application_release (application);
     return 0;

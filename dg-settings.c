@@ -87,7 +87,6 @@ dg_settings__get_property__ (GObject    *object,
 
     dg_lobj GFile* setting_file = g_file_get_child (priv->settings_path,
                                                     g_param_spec_get_name (pspec));
-    dg_lmem gchar* setting_path = g_file_get_path (setting_file);
 
     /* Use the default value when the file does not exist */
     g_value_copy (g_param_spec_get_default_value (pspec), value);

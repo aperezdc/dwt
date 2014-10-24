@@ -17,7 +17,7 @@ all: dwt dwt.1 dwt.desktop
 
 dwt: CFLAGS += $(PKG_CFLAGS)
 dwt: LDLIBS += $(PKG_LDLIBS)
-dwt: dwt.o dirdb.o dwt-settings.o dwt.gresources.o
+dwt: dwt.o dwt-settings.o dg-settings.o dwt.gresources.o
 
 %: %.o
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
@@ -34,7 +34,7 @@ dwt.gresources.o: menus.xml
 	glib-compile-resources --generate-header --target=$@ $<
 
 clean:
-	$(RM) dwt dwt.gresources.o dwt.gresources.h dwt.gresources.c dwt.o dirdb.o dwt-settings.o
+	$(RM) dwt dwt.gresources.o dwt.gresources.h dwt.gresources.c dwt.o dg-settings.o dwt-settings.o
 
 install: all
 	install -m 755 -d $(DESTDIR)$(PREFIX)/bin
