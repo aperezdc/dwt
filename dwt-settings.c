@@ -52,6 +52,12 @@ DG_SETTINGS_STRING     ("font",
                         "Name of the terminal font.",
                         DWT_DEFAULT_FONT);
 
+DG_SETTINGS_STRING     ("command",
+                        "Command to run",
+                        "Command to run instead of the user shell, if"
+                        " flag '-e' is not specified during invocation.",
+                        NULL);
+
 DG_SETTINGS_CLASS_END
 
 

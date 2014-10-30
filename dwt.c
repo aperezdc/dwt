@@ -563,6 +563,7 @@ static GtkWidget*
 create_new_window (GtkApplication *application,
                    GVariantDict   *options)
 {
+    dg_lmem gchar* command = NULL;
     gboolean opt_show_title;
     gboolean opt_update_title;
     gboolean opt_no_headerbar;
@@ -571,10 +572,11 @@ create_new_window (GtkApplication *application,
                   "show-title", &opt_show_title,
                   "update-title", &opt_update_title,
                   "no-header-bar", &opt_no_headerbar,
+                  "command", &command,
                   NULL);
 
+    const gchar *opt_command = command;
     const gchar *opt_workdir = NULL;
-    const gchar *opt_command = NULL;
     const gchar *opt_title   = NULL;
 
     if (options) {
