@@ -30,6 +30,12 @@ DG_SETTINGS_BOOLEAN    ("show-title",
                         "Show title bars for maximized terminal windows.",
                         FALSE);
 
+DG_SETTINGS_BOOLEAN    ("update-title",
+                        "Update window titles",
+                        "Allow updating the titles of windows using the"
+                        " same escape sequence used by XTerm.",
+                        TRUE);
+
 DG_SETTINGS_BOOLEAN    ("no-header-bar",
                         "Do not use header bars",
                         "Let the window manager decorate windows instead."

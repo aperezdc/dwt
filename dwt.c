@@ -61,6 +61,13 @@ static const GOptionEntry option_entries[] =
         "Initial terminal window title",
         "TITLE",
     }, {
+        "no-title-updates", 'T',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_NONE,
+        NULL,
+        "Do not update window title automatically",
+        NULL,
+    }, {
         "scrollback", 's',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_INT,
@@ -556,10 +563,12 @@ create_new_window (GtkApplication *application,
                    GVariantDict   *options)
 {
     gboolean opt_show_title;
+    gboolean opt_update_title;
     gboolean opt_no_headerbar;
 
     g_object_get (dwt_settings_get_instance (),
                   "show-title", &opt_show_title,
+                  "update-title", &opt_update_title,
                   "no-header-bar", &opt_no_headerbar,
                   NULL);
 
@@ -568,11 +577,15 @@ create_new_window (GtkApplication *application,
     const gchar *opt_title   = NULL;
 
     if (options) {
+        gboolean opt_no_auto_title = FALSE;
         g_variant_dict_lookup (options, "title-on-maximize", "b", &opt_show_title);
         g_variant_dict_lookup (options, "no-header-bar", "b", &opt_no_headerbar);
+        g_variant_dict_lookup (options, "no-auto-title", "b", &opt_no_auto_title);
         g_variant_dict_lookup (options, "workdir", "&s", &opt_workdir);
         g_variant_dict_lookup (options, "command", "&s", &opt_command);
         g_variant_dict_lookup (options, "title",   "&s", &opt_title);
+        if (opt_no_auto_title)
+            opt_update_title = FALSE;
     }
     if (!opt_workdir) opt_workdir = g_get_home_dir ();
     if (!opt_command) opt_command = guess_shell ();
@@ -626,9 +639,10 @@ create_new_window (GtkApplication *application,
     /*
      * Propagate title changes to the window.
      */
-    g_object_bind_property (G_OBJECT (vtterm), "window-title",
-                            G_OBJECT (window), "title",
-                            G_BINDING_DEFAULT);
+    if (opt_update_title)
+        g_object_bind_property (G_OBJECT (vtterm), "window-title",
+                                G_OBJECT (window), "title",
+                                G_BINDING_DEFAULT);
 
     if (!opt_no_headerbar)
         setup_header_bar (window, vtterm, opt_show_title);
