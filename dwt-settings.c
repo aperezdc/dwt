@@ -77,5 +77,5 @@ DwtSettings*
 dwt_settings_get_instance (void)
 {
     static GOnce instance_once = G_ONCE_INIT;
-    return g_once(&instance_once, dwt_settings_create, NULL);
+    return g_once (&instance_once, dwt_settings_create, NULL);
 }
