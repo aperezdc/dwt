@@ -109,6 +109,56 @@ dg_settings__get_property__ (GObject    *object,
 
 
 static void
+write_line (GFile       *file,
+            GParamSpec  *pspec,
+            const gchar *line)
+{
+    g_assert (file != NULL);
+    g_assert (pspec != NULL);
+    g_assert (line != NULL);
+
+    /* TODO: Handle errors */
+    dg_lobj GOutputStream *stream =
+        G_OUTPUT_STREAM (g_file_open_readwrite (file, NULL, NULL));
+    if (stream == NULL)
+        return;
+
+    gsize bytes_written;
+    g_output_stream_printf (stream,
+                            &bytes_written,
+                            NULL,
+                            NULL,
+                            "%s\n\n%s\n",
+                            line,
+                            g_param_spec_get_blurb (pspec));
+
+    g_output_stream_close (stream,
+                           NULL,
+                           NULL);
+}
+
+
+void
+dg_settings__set_property__ (GObject      *object,
+                             guint         prop_id,
+                             const GValue *value,
+                             GParamSpec   *pspec)
+{
+    DgSettingsPrivate *priv = dg_settings_get_instance_private (DG_SETTINGS (object));
+
+    dg_lobj GFile *setting_file = g_file_get_child (priv->settings_path,
+                                                    g_param_spec_get_name (pspec));
+
+    switch (G_PARAM_SPEC_VALUE_TYPE (pspec)) {
+        case G_TYPE_BOOLEAN:
+            write_line (setting_file, pspec,
+                        g_value_get_boolean (value) ? "true" : "false");
+            break;
+    }
+}
+
+
+static void
 dg_settings_get_property (GObject    *object,
                           guint       prop_id,
                           GValue     *value,

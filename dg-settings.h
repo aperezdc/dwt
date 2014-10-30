@@ -29,11 +29,15 @@ struct _DgSettings {
 
 GType dg_settings_get_type (void);
 
-void dg_settings__get_property__ (GObject    *object,
-                                  guint       prop_id,
-                                  GValue     *value,
-                                  GParamSpec *pspec);
-void dg_settings__constructed__  (GObject    *object);
+void dg_settings__get_property__ (GObject      *object,
+                                  guint         prop_id,
+                                  GValue       *value,
+                                  GParamSpec   *pspec);
+void dg_settings__set_property__ (GObject      *object,
+                                  guint         prop_id,
+                                  const GValue *value,
+                                  GParamSpec   *pspec);
+void dg_settings__constructed__  (GObject      *object);
 
 #define DG_SETTING__FLAG \
   (1 << G_PARAM_USER_SHIFT)
@@ -88,6 +92,7 @@ void dg_settings__constructed__  (GObject    *object);
   G_DEFINE_TYPE (_T, _t, DG_SETTINGS_TYPE)                                  \
   static void _t ## _class_init (_T ## Class *klass) {                      \
     G_OBJECT_CLASS (klass)->get_property = dg_settings__get_property__;     \
+    G_OBJECT_CLASS (klass)->set_property = dg_settings__set_property__;     \
     G_OBJECT_CLASS (klass)->constructed  = dg_settings__constructed__;
 #define DG_SETTINGS_CLASS_END }
 
