@@ -12,6 +12,7 @@
 #include <gtk/gtk.h>
 #include <pwd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <vte/vte.h>
 
@@ -727,11 +728,18 @@ app_command_line_received (GApplication            *application,
 
 
 static const gchar*
-get_appplication_id (void) {
+get_application_id (const gchar* argv0) {
     static const gchar *app_id = NULL;
     if (!app_id) {
-        if (!(app_id = g_getenv ("DWT_APPLICATION_ID")))
+        if (!(app_id = g_getenv ("DWT_APPLICATION_ID"))) {
             app_id = "org.perezdecastro.dwt";
+            const gchar* slash_position = strrchr (argv0, '/');
+            if (slash_position)
+                argv0 = slash_position + 1;
+            if (!g_str_equal ("dwt", argv0))
+                app_id = g_strdup_printf ("%s.%s", app_id, argv0);
+            g_set_prgname (app_id + DG_LENGTH_OF ("org.perezdecastro.") - 1);
+        }
     }
     return g_str_equal ("none", app_id) ? NULL : app_id;
 }
@@ -741,7 +749,7 @@ int
 main (int argc, char *argv[])
 {
     dg_lobj GtkApplication *application =
-        gtk_application_new (get_appplication_id (),
+        gtk_application_new (get_application_id (argv[0]),
                              G_APPLICATION_HANDLES_COMMAND_LINE);
 
     g_application_add_main_option_entries (G_APPLICATION (application),

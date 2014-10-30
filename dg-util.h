@@ -50,4 +50,7 @@ dg_lerr_cleanup (void *ptr)
 # define dg_lerr - GCC or Clang is needed for dg_lerr to work
 #endif
 
+#define DG_LENGTH_OF(_array) \
+    (sizeof (_array) / sizeof (_array)[0])
+
 #endif /* !DG_UTIL_H */

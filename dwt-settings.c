@@ -59,7 +59,7 @@ static gpointer
 dwt_settings_create (gpointer dummy)
 {
     dg_lmem gchar* path = g_build_filename (g_get_user_config_dir (),
-                                            "dwt",
+                                            g_get_prgname (),
                                             NULL);
     return g_object_new (dwt_settings_get_type (),
                          "settings-path", path,
