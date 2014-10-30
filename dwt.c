@@ -153,9 +153,9 @@ configure_term_widget (VteTerminal  *vtterm,
 
     /* ...and allow command line options to override them. */
     if (options) {
-        g_variant_dict_lookup (options, "font",       "&s", &opt_font);
-        g_variant_dict_lookup (options, "allow-bold", "b",  &opt_bold);
-        g_variant_dict_lookup (options, "scrollback", "u",  &opt_scroll);
+        g_variant_dict_lookup (options, "font",       "s", &opt_font);
+        g_variant_dict_lookup (options, "allow-bold", "b", &opt_bold);
+        g_variant_dict_lookup (options, "scrollback", "u", &opt_scroll);
     }
 
     PangoFontDescription *fontd = pango_font_description_from_string (opt_font);
