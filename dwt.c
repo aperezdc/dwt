@@ -310,7 +310,7 @@ term_mouse_button_released (VteTerminal    *vtterm,
         dg_lerr GError *gerror = NULL;
         if (!gtk_show_uri (NULL, match, event->time, &gerror))
             g_printerr ("Could not open URL: %s\n", gerror->message);
-        return TRUE;
+        return FALSE;
     }
 
 
