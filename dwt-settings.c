@@ -58,6 +58,13 @@ DG_SETTINGS_STRING     ("command",
                         " flag '-e' is not specified during invocation.",
                         NULL);
 
+DG_SETTINGS_STRING     ("title",
+                        "Default window title",
+                        "Initial title to show on terminal windows, if not"
+                        " changed using the XTerm title change escape"
+                        " sequence.",
+                        "dwt");
+
 DG_SETTINGS_CLASS_END
 
 
