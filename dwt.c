@@ -216,9 +216,6 @@ term_beeped (VteTerminal *vtterm, gpointer userdata)
 }
 
 
-/*
- * FIXME: A black border still remains when the size hints are set.
- */
 static void
 term_char_size_changed (VteTerminal *vtterm,
                         guint        width,
