@@ -564,6 +564,7 @@ create_new_window (GtkApplication *application,
                    GVariantDict   *options)
 {
     dg_lmem gchar* command = NULL;
+    dg_lmem gchar* title = NULL;
     gboolean opt_show_title;
     gboolean opt_update_title;
     gboolean opt_no_headerbar;
@@ -573,11 +574,12 @@ create_new_window (GtkApplication *application,
                   "update-title", &opt_update_title,
                   "no-header-bar", &opt_no_headerbar,
                   "command", &command,
+                  "title", &title,
                   NULL);
 
     const gchar *opt_command = command;
+    const gchar *opt_title   = title;
     const gchar *opt_workdir = NULL;
-    const gchar *opt_title   = NULL;
 
     if (options) {
         gboolean opt_no_auto_title = FALSE;
@@ -592,7 +594,13 @@ create_new_window (GtkApplication *application,
     }
     if (!opt_workdir) opt_workdir = g_get_home_dir ();
     if (!opt_command) opt_command = guess_shell ();
-    if (!opt_title) opt_title = "dwt";
+  
+    /*
+     * Title either comes from the default value of the "title" setting,
+     * or from the command line flag, but should never be NULL at this
+     * point.
+     */
+    g_assert (opt_title);
 
     dg_lerr GError *gerror = NULL;
     gint command_argv_len = 0;
