@@ -687,7 +687,9 @@ static void
 app_started (GApplication *application)
 {
     /* Set default icon, and preferred theme variant. */
-    gtk_window_set_default_icon_name ("terminal");
+    dg_lmem gchar* icon = NULL;
+    g_object_get (dwt_settings_get_instance (), "icon", &icon, NULL);
+    gtk_window_set_default_icon_name (icon);
     g_object_set(gtk_settings_get_default(),
                  "gtk-application-prefer-dark-theme",
                  TRUE, NULL);

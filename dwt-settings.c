@@ -65,6 +65,13 @@ DG_SETTINGS_STRING     ("title",
                         " sequence.",
                         "dwt");
 
+DG_SETTINGS_STRING     ("icon",
+                        "Terminal window icon",
+                        "Name of the icon used for terminal windows, or"
+                        " path to the file containing the image to be used"
+                        " as icon.",
+                        "terminal");
+
 DG_SETTINGS_CLASS_END
 
 
