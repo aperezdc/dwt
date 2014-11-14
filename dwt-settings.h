@@ -8,11 +8,11 @@
 #ifndef DWT_SETTINGS_H
 #define DWT_SETTINGS_H
 
-#include "dg-settings.h"
+#include <glib.h>
 
 G_BEGIN_DECLS
 
-DG_SETTINGS_CLASS_DECLARE (DwtSettings, dwt_settings)
+typedef struct _DwtSettings DwtSettings;
 
 DwtSettings* dwt_settings_get_instance (void);
 

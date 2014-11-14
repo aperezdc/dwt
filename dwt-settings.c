@@ -5,7 +5,7 @@
  * Distributed under terms of the MIT license.
  */
 
-#include "dwt-settings.h"
+#include "dg-settings.h"
 #include "dg-util.h"
 
 #ifndef DWT_DEFAULT_FONT
@@ -13,7 +13,8 @@
 #endif /* !DWT_DEFAULT_FONT */
 
 
-DG_SETTINGS_CLASS_DEFINE (DwtSettings, dwt_settings)
+DG_SETTINGS_CLASS_DECLARE (DwtSettings, dwt_settings)
+DG_SETTINGS_CLASS_DEFINE  (DwtSettings, dwt_settings)
 
 DG_SETTINGS_BOOLEAN    ("allow-bold",
                         "Allow bold fonts",
