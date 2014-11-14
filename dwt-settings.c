@@ -39,7 +39,7 @@ DG_SETTINGS_BOOLEAN    ("update-title",
 DG_SETTINGS_BOOLEAN    ("no-header-bar",
                         "Do not use header bars",
                         "Let the window manager decorate windows instead."
-                        " of using client-side header bars",
+                        " of using client-side header bars.",
                         FALSE);
 
 DG_SETTINGS_UINT_RANGE ("scrollback",
