@@ -750,7 +750,9 @@ get_application_id (const gchar* argv0) {
             g_set_prgname (app_id + DG_LENGTH_OF ("org.perezdecastro.") - 1);
         }
     }
-    return g_str_equal ("none", app_id) ? NULL : app_id;
+    return (g_str_equal ("none", app_id) ||
+            g_getenv ("DWT_SINGLE_WINDOW_PROCESS") != NULL)
+        ? NULL : app_id;
 }
 
 
