@@ -10,6 +10,7 @@
 #include "dg-util.h"
 #include "dwt-settings.h"
 #include <gtk/gtk.h>
+#include <gio/gvfs.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,6 +143,9 @@ static const GdkRGBA color_bg = {   0,   0,   0, 1 };
 
 /* Regexp used to match URIs and allow clicking them */
 static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
+static const gchar image_regex_string[] = "/[^/]+\\.(png|jpg|jpeg|gif|webp)$";
+
+static GRegex *image_regex = NULL;
 
 
 static void
@@ -289,6 +293,77 @@ setup_popover (VteTerminal *vtterm)
 }
 
 
+static void
+image_popover_closed (GtkWidget *popover,
+                      gpointer   userdata)
+{
+	gtk_widget_destroy (popover);
+}
+
+
+static void
+image_pixbuf_loaded (GInputStream *stream,
+                     GAsyncResult *result,
+                     GtkWidget    *popover)
+{
+	dg_lerr GError *gerror = NULL;
+	dg_lobj GdkPixbuf *pixbuf = gdk_pixbuf_new_from_stream_finish (result,
+                                                                   &gerror);
+	if (!pixbuf || gerror) {
+		g_printerr ("Could not decode image from pixbuf: %s",
+					gerror->message);
+		return;
+	}
+	GtkWidget *image = gtk_image_new_from_pixbuf (pixbuf);
+	gtk_container_add (GTK_CONTAINER (popover), image);
+	g_signal_connect (popover, "closed",
+                      G_CALLBACK (image_popover_closed), NULL);
+	gtk_widget_show_all (popover);
+}
+
+
+static void
+image_file_opened (GFile        *file,
+                   GAsyncResult *result,
+                   GtkWidget    *popover)
+{
+	dg_lerr GError *gerror = NULL;
+	dg_lobj GFileInputStream *stream = g_file_read_finish (file,
+                                                           result,
+                                                           &gerror);
+	if (!stream || gerror) {
+		dg_lmem gchar *uri = g_file_get_uri (file);
+		g_printerr ("Could not open URL '%s': %s", uri, gerror->message);
+		return;
+	}
+
+	gdk_pixbuf_new_from_stream_at_scale_async (G_INPUT_STREAM (stream),
+                                               500, 500, TRUE,
+                                               NULL,
+                                               (GAsyncReadyCallback) image_pixbuf_loaded,
+                                               popover);
+}
+
+
+static GtkWidget*
+make_popover_for_image_url (VteTerminal *vtterm,
+							const gchar *uri)
+{
+	g_assert (vtterm);
+	g_assert (uri);
+
+	GtkWidget *popover = gtk_popover_new (GTK_WIDGET (vtterm));
+	dg_lobj GVfs* gvfs = g_vfs_get_default ();
+	dg_lobj GFile* file = g_vfs_get_file_for_uri (gvfs, uri);
+	g_file_read_async (file,
+                       G_PRIORITY_DEFAULT,
+                       NULL,
+                       (GAsyncReadyCallback) image_file_opened,
+                       popover);
+	return popover;
+}
+
+
 static gboolean
 term_mouse_button_released (VteTerminal    *vtterm,
                             GdkEventButton *event,
@@ -303,11 +378,24 @@ term_mouse_button_released (VteTerminal    *vtterm,
     gint match_tag;
     dg_lmem gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
 
-    if (match && event->button == 1 && CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
-        dg_lerr GError *gerror = NULL;
-        if (!gtk_show_uri (NULL, match, event->time, &gerror))
-            g_printerr ("Could not open URL: %s\n", gerror->message);
-        return FALSE;
+    if (match && event->button == 1) {
+		if (CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
+			dg_lerr GError *gerror = NULL;
+			if (!gtk_show_uri (NULL, match, event->time, &gerror))
+				g_printerr ("Could not open URL: %s\n", gerror->message);
+			return FALSE;
+		} else if (g_regex_match (image_regex, match, 0, NULL)) {
+			/* Show picture in a popover */
+			GdkRectangle rect;
+			rect.height = vte_terminal_get_char_height (vtterm);
+			rect.width = vte_terminal_get_char_width (vtterm);
+			rect.y = rect.height * row;
+			rect.x = rect.width * col;
+
+			GtkWidget* popover = make_popover_for_image_url (vtterm, match);
+			gtk_popover_set_pointing_to (GTK_POPOVER (popover), &rect);
+			return FALSE;
+		}
     }
 
 
@@ -684,7 +772,7 @@ create_new_window (GtkApplication *application,
 
 
 static void
-app_started (GApplication *application)
+app_started (GApplication *application, gpointer userdata)
 {
     /* Set default icon, and preferred theme variant. */
     dg_lmem gchar* icon = NULL;
@@ -693,6 +781,9 @@ app_started (GApplication *application)
     g_object_set(gtk_settings_get_default(),
                  "gtk-application-prefer-dark-theme",
                  TRUE, NULL);
+
+	image_regex = g_regex_new (image_regex_string, G_REGEX_CASELESS | G_REGEX_OPTIMIZE, 0, NULL);
+	g_assert (image_regex);
 
     g_action_map_add_action_entries (G_ACTION_MAP (application), app_actions,
                                      G_N_ELEMENTS (app_actions), application);
@@ -720,6 +811,13 @@ app_started (GApplication *application)
                                          accel_map[i].action,
                                          accel_map[i].param);
     }
+}
+
+
+static void
+app_shutdown (GApplication *application, gpointer userdata)
+{
+	g_regex_unref (image_regex);
 }
 
 
@@ -768,6 +866,8 @@ main (int argc, char *argv[])
 
     g_signal_connect (G_OBJECT (application), "startup",
                       G_CALLBACK (app_started), NULL);
+    g_signal_connect (G_OBJECT (application), "shutdown",
+                      G_CALLBACK (app_shutdown), NULL);
     g_signal_connect (G_OBJECT (application), "command-line",
                       G_CALLBACK (app_command_line_received), NULL);
 
