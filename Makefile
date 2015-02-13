@@ -13,12 +13,12 @@ PKG_MODULES := vte-2.91
 PKG_CFLAGS  := $(shell pkg-config --cflags $(PKG_MODULES))
 PKG_LDLIBS  := $(shell pkg-config --libs   $(PKG_MODULES))
 
-prefix := $(PREFIX)
-exec_prefix := $(prefix)
-bindir := $(exec_prefix)/bin
-datarootdir := $(prefix)/share
-mandir := $(datarootdir)/man
-man1dir := $(mandir)/man1
+prefix ?= $(PREFIX)
+exec_prefix ?= $(prefix)
+bindir ?= $(exec_prefix)/bin
+datarootdir ?= $(prefix)/share
+mandir ?= $(datarootdir)/man
+man1dir ?= $(mandir)/man1
 
 all: dwt dwt.1 dwt.desktop
 
