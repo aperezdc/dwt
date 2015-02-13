@@ -13,6 +13,13 @@ PKG_MODULES := vte-2.91
 PKG_CFLAGS  := $(shell pkg-config --cflags $(PKG_MODULES))
 PKG_LDLIBS  := $(shell pkg-config --libs   $(PKG_MODULES))
 
+prefix := $(PREFIX)
+exec_prefix := $(prefix)
+bindir := $(exec_prefix)/bin
+datarootdir := $(prefix)/share
+mandir := $(datarootdir)/man
+man1dir := $(mandir)/man1
+
 all: dwt dwt.1 dwt.desktop
 
 dwt: CFLAGS += $(PKG_CFLAGS)
@@ -37,12 +44,12 @@ clean:
 	$(RM) dwt dwt.gresources.o dwt.gresources.h dwt.gresources.c dwt.o dg-settings.o dwt-settings.o
 
 install: all
-	install -m 755 -d $(DESTDIR)$(PREFIX)/bin
-	install -m 755 -t $(DESTDIR)$(PREFIX)/bin dwt
-	install -m 755 -d $(DESTDIR)$(PREFIX)/man/man1
-	install -m 644 -t $(DESTDIR)$(PREFIX)/man/man1 dwt.1
-	install -m 755 -d $(DESTDIR)$(PREFIX)/share/applications
-	install -m 644 -t $(DESTDIR)$(PREFIX)/share/applications dwt.desktop
+	install -m 755 -d $(DESTDIR)$(bindir)
+	install -m 755 -t $(DESTDIR)$(bindir) dwt
+	install -m 755 -d $(DESTDIR)$(man1dir)
+	install -m 644 -t $(DESTDIR)$(man1dir) dwt.1
+	install -m 755 -d $(DESTDIR)$(datarootdir)/applications
+	install -m 644 -t $(DESTDIR)$(datarootdir)/applications dwt.desktop
 
 tests: CFLAGS += $(PKG_CFLAGS)
 tests: LDLIBS += $(PKG_LDLIBS)
