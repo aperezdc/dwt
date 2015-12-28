@@ -73,6 +73,12 @@ DG_SETTINGS_STRING     ("icon",
                         " as icon.",
                         "terminal");
 
+DG_SETTINGS_STRING     ("cursor-color",
+                        "Cursor color",
+                        "Color of the cursor in active terminal windows,"
+                        " in #RRGGBB hex format.",
+                        "#AA0033");
+
 DG_SETTINGS_CLASS_END
 
 

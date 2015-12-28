@@ -126,16 +126,9 @@ static const GdkRGBA color_palette[] =
   { 1,        1,        1,        1 },
 };
 
-#ifndef DWT_CURSOR_COLOR_FOCUSED
-#define DWT_CURSOR_COLOR_FOCUSED "#00cc00"
-#endif /* !DWT_CURSOR_COLOR_FOCUSED */
 
-#ifndef DWT_CURSOR_COLOR_UNFOCUSED
-#define DWT_CURSOR_COLOR_UNFOCUSED "#999999"
-#endif /* !DWT_CURSOR_COLOR_UNFOCUSED */
-
-static const GdkRGBA cursor_active   = {   0, 0.75,   0, 1 };
-static const GdkRGBA cursor_inactive = { 0.6,  0.6, 0.6, 1 };
+static GdkRGBA cursor_active   = {   0, 0.75,   0, 1 };
+static GdkRGBA cursor_inactive = { 0.6,  0.6, 0.6, 1 };
 
 /* Use light grey on black */
 static const GdkRGBA color_fg = { 0.8, 0.8, 0.8, 1 };
@@ -775,12 +768,25 @@ static void
 app_started (GApplication *application, gpointer userdata)
 {
     /* Set default icon, and preferred theme variant. */
+    dg_lmem gchar* cursor_color = NULL;
     dg_lmem gchar* icon = NULL;
-    g_object_get (dwt_settings_get_instance (), "icon", &icon, NULL);
+    g_object_get (dwt_settings_get_instance (),
+                  "cursor-color", &cursor_color,
+                  "icon", &icon,
+                  NULL);
     gtk_window_set_default_icon_name (icon);
     g_object_set(gtk_settings_get_default(),
                  "gtk-application-prefer-dark-theme",
                  TRUE, NULL);
+
+    if (cursor_color) {
+        gdk_rgba_parse (&cursor_active, cursor_color);
+        memcpy (&cursor_inactive, &cursor_active, sizeof (GdkRGBA));
+        cursor_inactive.red   = 0.5 * cursor_active.red;
+        cursor_inactive.green = 0.5 * cursor_active.green;
+        cursor_inactive.blue  = 0.5 * cursor_active.blue;
+        cursor_inactive.alpha = 0.5 * cursor_active.alpha;
+    }
 
 	image_regex = g_regex_new (image_regex_string, G_REGEX_CASELESS | G_REGEX_OPTIMIZE, 0, NULL);
 	g_assert (image_regex);
