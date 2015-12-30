@@ -102,37 +102,46 @@ static const GOptionEntry option_entries[] =
 };
 
 
-/*
- * Set of colors as used by GNOME-Terminal for the “Linux” color scheme:
- * http://git.gnome.org/browse/gnome-terminal/tree/src/terminal-profile.c
- */
-static const GdkRGBA color_palette[] =
-{
-  { 0,        0,        0,        1 },
-  { 0.666667, 0,        0,        1 },
-  { 0,        0.666667, 0,        1 },
-  { 0.666667, 0.333333, 0,        1 },
-  { 0,        0,        0.666667, 1 },
-  { 0.666667, 0,        0.666667, 1 },
-  { 0,        0.666667, 0.666667, 1 },
-  { 0.666667, 0.666667, 0.666667, 1 },
-  { 0.333333, 0.333333, 0.333333, 1 },
-  { 1,        0.333333, 0.333333, 1 },
-  { 0.333333, 1,        0.333333, 1 },
-  { 1,        1,        0.333333, 1 },
-  { 0.333333, 0.333333, 1,        1 },
-  { 1,        0.333333, 1,        1 },
-  { 0.333333, 1,        1,        1 },
-  { 1,        1,        1,        1 },
+typedef struct {
+    const gchar *name;
+    GdkRGBA fg, bg;
+    GdkRGBA colors[16];
+} Theme;
+
+static const Theme themes[] = {
+    /*
+     * Set of colors as used by GNOME-Terminal for the “Linux” color scheme:
+     * http://git.gnome.org/browse/gnome-terminal/tree/src/terminal-profile.c
+     */
+    {
+        .name = "linux",
+        .fg = { 0.8, 0.8, 0.8, 1 },
+        .bg = {   0,   0,   0, 1 },
+        .colors = {
+            { 0,        0,        0,        1 },
+            { 0.666667, 0,        0,        1 },
+            { 0,        0.666667, 0,        1 },
+            { 0.666667, 0.333333, 0,        1 },
+            { 0,        0,        0.666667, 1 },
+            { 0.666667, 0,        0.666667, 1 },
+            { 0,        0.666667, 0.666667, 1 },
+            { 0.666667, 0.666667, 0.666667, 1 },
+            { 0.333333, 0.333333, 0.333333, 1 },
+            { 1,        0.333333, 0.333333, 1 },
+            { 0.333333, 1,        0.333333, 1 },
+            { 1,        1,        0.333333, 1 },
+            { 0.333333, 0.333333, 1,        1 },
+            { 1,        0.333333, 1,        1 },
+            { 0.333333, 1,        1,        1 },
+            { 1,        1,        1,        1 },
+        }
+    },
 };
 
 
 static GdkRGBA cursor_active   = {   0, 0.75,   0, 1 };
 static GdkRGBA cursor_inactive = { 0.6,  0.6, 0.6, 1 };
 
-/* Use light grey on black */
-static const GdkRGBA color_fg = { 0.8, 0.8, 0.8, 1 };
-static const GdkRGBA color_bg = {   0,   0,   0, 1 };
 
 /* Regexp used to match URIs and allow clicking them */
 static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
@@ -174,6 +183,9 @@ configure_term_widget (VteTerminal  *vtterm,
       fontd = NULL;
     }
 
+    /* TODO: Allow looking up themes. */
+    const Theme *theme = &themes[0];
+
     vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
     vte_terminal_set_mouse_autohide      (vtterm, FALSE);
@@ -184,10 +196,10 @@ configure_term_widget (VteTerminal  *vtterm,
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
     vte_terminal_set_colors              (vtterm,
-                                          &color_fg,
-                                          &color_bg,
-                                          color_palette,
-                                          G_N_ELEMENTS (color_palette));
+                                          &theme->fg,
+                                          &theme->bg,
+                                          theme->colors,
+                                          G_N_ELEMENTS (theme->colors));
 
     gint match_tag =
         vte_terminal_match_add_gregex (vtterm,
