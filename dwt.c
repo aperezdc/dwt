@@ -196,6 +196,13 @@ find_theme (const gchar *name)
 }
 
 
+#define SWAP(t, a, b)             \
+    do {                          \
+        t tmp_ ## __LINE__ = (a); \
+        (a) = (b);                \
+        (b) = tmp_ ## __LINE__;   \
+    } while (0)
+
 static void
 configure_term_widget (VteTerminal  *vtterm,
                        GVariantDict *options)
@@ -215,8 +222,14 @@ configure_term_widget (VteTerminal  *vtterm,
 
     /* ...and allow command line options to override them. */
     if (options) {
-        g_variant_dict_lookup (options, "font",       "s", &opt_font);
-        g_variant_dict_lookup (options, "theme",      "s", &opt_theme);
+        dg_lmem gchar *cmd_font = NULL;
+        g_variant_dict_lookup (options, "font", "s", &cmd_font);
+        if (cmd_font) SWAP (gchar*, cmd_font, opt_font);
+
+        dg_lmem gchar *cmd_theme = NULL;
+        g_variant_dict_lookup (options, "theme", "s", &cmd_theme);
+        if (cmd_theme) SWAP (gchar*, cmd_theme, opt_theme);
+
         g_variant_dict_lookup (options, "allow-bold", "b", &opt_bold);
         g_variant_dict_lookup (options, "scrollback", "u", &opt_scroll);
     }
