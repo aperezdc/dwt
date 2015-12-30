@@ -79,6 +79,13 @@ DG_SETTINGS_STRING     ("cursor-color",
                         " in #RRGGBB hex format.",
                         "#AA0033");
 
+DG_SETTINGS_STRING     ("theme",
+                        "Color theme",
+                        "Name of the built-in color theme to be used for the"
+                        " foreground, background, and the 16 basic terminal"
+                        " colors.",
+                        NULL);
+
 DG_SETTINGS_CLASS_END
 
 

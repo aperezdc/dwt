@@ -56,6 +56,13 @@ static const GOptionEntry option_entries[] =
         "Font used by the terminal, in FontConfig syntax",
         "FONT",
     }, {
+        "theme", 'T',
+        G_OPTION_FLAG_IN_MAIN,
+        G_OPTION_ARG_STRING,
+        NULL,
+        "Choose a built-in color theme",
+        "NAME",
+    }, {
         "title", 't',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_STRING,
@@ -136,6 +143,33 @@ static const Theme themes[] = {
             { 1,        1,        1,        1 },
         }
     },
+
+    /*
+     * https://github.com/mbadolato/iTerm2-Color-Schemes/blob/master/xrdb/Thayer%20Bright.xrdb
+     */
+    {
+        .name = "thayer",
+        .fg = { 0.972549, 0.972549, 0.972549, 1 }, // #f8f8f8
+        .bg = { 0.105882, 0.113725, 0.117647, 1 }, // #1b1d1e
+        .colors = {
+            { 0.105882, 0.113725, 0.117647, 1 }, // #1b1d1e
+            { 0.976471, 0.149020, 0.447059, 1 }, // #f92672
+            { 0.301961, 0.972549, 0.250980, 1 }, // #4df840
+            { 0.956863, 0.992157, 0.133333, 1 }, // #f4fd22
+            { 0.152941, 0.341176, 0.839216, 1 }, // #2757d6
+            { 0.540020, 0.329412, 0.996078, 1 }, // #8c54fe
+            { 0.219608, 0.784314, 0.709804, 1 }, // #38c8b5
+            { 0.800000, 0.800000, 0.776471, 1 }, // #ccccc6
+            { 0.313725, 0.325490, 0.329412, 1 }, // #505354
+            { 1.000000, 0.349020, 0.584314, 1 }, // #ff5995
+            { 0.713725, 0.890196, 0.329412, 1 }, // #b6e354
+            { 0.996078, 0.929412, 0.423529, 1 }, // #feed6c
+            { 0.247059, 0.470588, 1.000000, 1 }, // #3f78ff
+            { 0.619608, 0.435294, 0.996078, 1 }, // #9e6ffe
+            { 0.137255, 0.811765, 0.835294, 1 }, // #23cfd5
+            { 0.972549, 0.972549, 0.949020, 1 }, // #f8f8f2
+        },
+    },
 };
 
 
@@ -150,17 +184,31 @@ static const gchar image_regex_string[] = "/[^/]+\\.(png|jpg|jpeg|gif|webp)$";
 static GRegex *image_regex = NULL;
 
 
+static const Theme* const
+find_theme (const gchar *name)
+{
+    for (size_t i = 0; i < G_N_ELEMENTS (themes); i++) {
+        if (g_str_equal (name, themes[i].name)) {
+            return &themes[i];
+        }
+    }
+    return NULL;
+}
+
+
 static void
 configure_term_widget (VteTerminal  *vtterm,
                        GVariantDict *options)
 {
     /* Pick default settings from the settings... */
     dg_lmem gchar *opt_font = NULL;
+    dg_lmem gchar *opt_theme = NULL;
     gboolean opt_bold;
     guint opt_scroll;
 
     g_object_get (dwt_settings_get_instance (),
                   "font", &opt_font,
+                  "theme", &opt_theme,
                   "allow-bold", &opt_bold,
                   "scrollback", &opt_scroll,
                   NULL);
@@ -168,6 +216,7 @@ configure_term_widget (VteTerminal  *vtterm,
     /* ...and allow command line options to override them. */
     if (options) {
         g_variant_dict_lookup (options, "font",       "s", &opt_font);
+        g_variant_dict_lookup (options, "theme",      "s", &opt_theme);
         g_variant_dict_lookup (options, "allow-bold", "b", &opt_bold);
         g_variant_dict_lookup (options, "scrollback", "u", &opt_scroll);
     }
@@ -183,8 +232,14 @@ configure_term_widget (VteTerminal  *vtterm,
       fontd = NULL;
     }
 
-    /* TODO: Allow looking up themes. */
-    const Theme *theme = &themes[0];
+    const Theme *theme = &themes[1];
+    if (opt_theme) {
+        theme = find_theme (opt_theme);
+        if (!theme) {
+            g_printerr ("No such theme '%s', using default (linux)\n", opt_theme);
+            theme = &themes[1];
+        }
+    }
 
     vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
