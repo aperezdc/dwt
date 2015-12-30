@@ -672,7 +672,7 @@ create_new_window (GtkApplication *application,
     }
     if (!opt_workdir) opt_workdir = g_get_home_dir ();
     if (!opt_command) opt_command = guess_shell ();
-  
+
     /*
      * Title either comes from the default value of the "title" setting,
      * or from the command line flag, but should never be NULL at this
