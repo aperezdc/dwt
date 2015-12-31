@@ -1,0 +1,75 @@
+#! /usr/bin/env lua
+--
+-- convert-theme-xrdb
+-- Copyright (C) 2015 Adrian Perez <aperez@igalia.com>
+--
+-- Distributed under terms of the MIT license.
+--
+
+local line_pattern = "^%#define%s+([%a%_][%w_]*)%s+%#(%x%x)(%x%x)(%x%x)$"
+local ansi_nn_color_pattern = "^Ansi_(%d+)_Color$"
+
+local function prototype(init)
+	local proto = {}
+	proto.__index = proto
+	if type(init) == "function" then
+		setmetatable(proto, { __call = function (self, ...)
+			local obj = setmetatable({}, self)
+			init(obj, ...)
+			return obj
+		end })
+	end
+	return proto
+end
+
+local Color = prototype(function(self, t)
+	self.r = t.r or 0.0
+	self.g = t.g or 0.0
+	self.b = t.b or 0.0
+	self.a = t.a or 1.0
+end)
+
+local color_gdk_rgba_template = "{ %.6f, %.6f, %.6f, %.6f }"
+function Color:as_gdk_rgba_string()
+	return color_gdk_rgba_template:format(self.r, self.g, self.b, self.a)
+end
+
+local color_hex_template = "#%02x%02x%02x"
+function Color:as_hex_string()
+	return color_hex_template:format(self.r * 255, self.g * 255, self.b * 255, self.a * 255)
+end
+
+
+local color_name_map = {
+	Background_Color = "bg";
+	Foreground_Color = "fg";
+}
+local colors = {}
+
+for line in io.lines() do
+	local name, r, g, b = line:match(line_pattern)
+	if name and r and g and b then
+		local c = Color {
+			r = tonumber(r, 16) / 255.0;
+			g = tonumber(g, 16) / 255.0;
+			b = tonumber(b, 16) / 255.0;
+			a = 1.0; -- Always opaque.
+		}
+		local key = name:match(ansi_nn_color_pattern)
+		key = key and tonumber(key) or color_name_map[name]
+		if key then
+			colors[key] = c
+		end
+	end
+end
+
+io.write("{\n")
+io.write("  .name = \"", arg[1] or "edit-me!", "\",\n")
+io.write("  .fg = ", colors.fg:as_gdk_rgba_string(), ", /* ", colors.fg:as_hex_string(), " */\n")
+io.write("  .bg = ", colors.bg:as_gdk_rgba_string(), ", /* ", colors.bg:as_hex_string(), " */\n")
+io.write("  .colors = {\n")
+for _, c in ipairs(colors) do
+	io.write("    ", c:as_gdk_rgba_string(), ", /* ", c:as_hex_string(), " */\n")
+end
+io.write("  },\n")
+io.write("},\n")
