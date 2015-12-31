@@ -118,6 +118,7 @@ typedef struct {
 static const Theme themes[] = {
 #include "themes/linux.h"
 #include "themes/thayer.h"
+#include "themes/wombat.h"
 #include "themes/zenburn.h"
 };
 
