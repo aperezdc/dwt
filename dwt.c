@@ -869,7 +869,15 @@ app_command_line_received (GApplication            *application,
 {
     g_application_hold (G_APPLICATION (application));
     GVariantDict *options = g_application_command_line_get_options_dict (cmdline);
-    create_new_window (GTK_APPLICATION (application), options);
+
+    dg_lmem gchar *opt_theme = NULL;
+    if (g_variant_dict_lookup (options, "theme", "s", &opt_theme) && g_str_equal (opt_theme, "list")) {
+        for (size_t i = 0; i < G_N_ELEMENTS (themes); i++) {
+            g_print ("%s\n", themes[i].name);
+        }
+    } else {
+        create_new_window (GTK_APPLICATION (application), options);
+    }
     g_variant_dict_unref (options);
     g_application_release (application);
     return 0;
