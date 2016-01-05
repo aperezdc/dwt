@@ -1,18 +1,11 @@
-/*
- * themes/solarized.h
- * Copyright (C) 2015 Adrian Perez <aperez@igalia.com>
- *
- * Distributed under terms of the MIT license.
- */
-
-#ifndef THEMES_SOLARIZED_H
-#define THEMES_SOLARIZED_H
-
+#ifndef THEME_SOLARIZED_H
+#define THEME_SOLARIZED_H 1
 {
   .name = "solarized",
   .fg = { 0.611765, 0.760784, 0.764706, 1.000000 }, /* #9cc2c3 */
   .bg = { 0.000000, 0.117647, 0.152941, 1.000000 }, /* #001e27 */
   .colors = {
+    { 0.000000, 0.156863, 0.192157, 1.000000 }, /* #002831 */
     { 0.819608, 0.109804, 0.141176, 1.000000 }, /* #d11c24 */
     { 0.423529, 0.745098, 0.423529, 1.000000 }, /* #6cbe6c */
     { 0.647059, 0.466667, 0.023529, 1.000000 }, /* #a57706 */
@@ -30,5 +23,4 @@
     { 0.988235, 0.956863, 0.862745, 1.000000 }, /* #fcf4dc */
   },
 },
-
-#endif /* !THEMES_SOLARIZED_H */
+#endif /* THEME_SOLARIZED */

@@ -1,18 +1,11 @@
-/*
- * themes/zenburn.h
- * Copyright (C) 2015 Adrian Perez <aperez@igalia.com>
- *
- * Distributed under terms of the MIT license.
- */
-
-#ifndef THEMES_ZENBURN_H
-#define THEMES_ZENBURN_H
-
+#ifndef THEME_ZENBURN_H
+#define THEME_ZENBURN_H 1
 {
   .name = "zenburn",
   .fg = { 0.862745, 0.862745, 0.800000, 1.000000 }, /* #dcdccc */
   .bg = { 0.247059, 0.247059, 0.247059, 1.000000 }, /* #3f3f3f */
   .colors = {
+    { 0.301961, 0.301961, 0.301961, 1.000000 }, /* #4d4d4d */
     { 0.439216, 0.313725, 0.313725, 1.000000 }, /* #705050 */
     { 0.376471, 0.705882, 0.541176, 1.000000 }, /* #60b48a */
     { 0.941176, 0.874510, 0.686275, 1.000000 }, /* #f0dfaf */
@@ -30,5 +23,4 @@
     { 1.000000, 1.000000, 1.000000, 1.000000 }, /* #ffffff */
   },
 },
-
-#endif /* !THEMES_ZENBURN_H */
+#endif /* THEME_ZENBURN */

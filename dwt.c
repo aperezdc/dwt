@@ -115,8 +115,12 @@ typedef struct {
     GdkRGBA colors[16];
 } Theme;
 
+
+/* The first element is the "default" theme. */
 static const Theme themes[] = {
 #include "themes/linux.h"
+#include "themes/monokai.h"
+#include "themes/solarized.h"
 #include "themes/thayer.h"
 #include "themes/wombat.h"
 #include "themes/zenburn.h"

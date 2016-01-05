@@ -1,18 +1,11 @@
-/*
- * themes/wombat.h
- * Copyright (C) 2015 Adrian Perez <aperez@igalia.com>
- *
- * Distributed under terms of the MIT license.
- */
-
-#ifndef THEMES_WOMBAT_H
-#define THEMES_WOMBAT_H
-
+#ifndef THEME_WOMBAT_H
+#define THEME_WOMBAT_H 1
 {
   .name = "wombat",
   .fg = { 0.870588, 0.854902, 0.811765, 1.000000 }, /* #dedacf */
   .bg = { 0.090196, 0.090196, 0.090196, 1.000000 }, /* #171717 */
   .colors = {
+    { 0.000000, 0.000000, 0.000000, 1.000000 }, /* #000000 */
     { 1.000000, 0.380392, 0.352941, 1.000000 }, /* #ff615a */
     { 0.694118, 0.913725, 0.411765, 1.000000 }, /* #b1e969 */
     { 0.921569, 0.850980, 0.611765, 1.000000 }, /* #ebd99c */
@@ -30,5 +23,4 @@
     { 1.000000, 1.000000, 1.000000, 1.000000 }, /* #ffffff */
   },
 },
-
-#endif /* !THEMES_WOMBAT_H */
+#endif /* THEME_WOMBAT */
