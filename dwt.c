@@ -120,6 +120,7 @@ typedef struct {
 static const Theme themes[] = {
 #include "themes/linux.h"
 #include "themes/monokai.h"
+#include "themes/molokai.h"
 #include "themes/solarized.h"
 #include "themes/thayer.h"
 #include "themes/wombat.h"
