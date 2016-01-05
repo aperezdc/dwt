@@ -70,7 +70,7 @@ static const GOptionEntry option_entries[] =
         "Initial terminal window title",
         "TITLE",
     }, {
-        "no-title-updates", 'T',
+        "no-title-updates", 'U',
         G_OPTION_FLAG_IN_MAIN,
         G_OPTION_ARG_NONE,
         NULL,
