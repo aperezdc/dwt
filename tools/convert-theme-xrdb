@@ -5,6 +5,12 @@
 --
 -- Distributed under terms of the MIT license.
 --
+if #arg ~= 1 then
+	io.stderr:write("convert-theme-xrdb: No theme name.\n",
+	                "Usage: convert-theme-xrdb theme-name < input\n")
+	os.exit(1)
+end
+
 
 local line_pattern = "^%#define%s+([%a%_][%w_]*)%s+%#(%x%x)(%x%x)(%x%x)$"
 local ansi_nn_color_pattern = "^Ansi_(%d+)_Color$"
@@ -56,15 +62,20 @@ for line in io.lines() do
 			a = 1.0; -- Always opaque.
 		}
 		local key = name:match(ansi_nn_color_pattern)
-		key = key and tonumber(key) or color_name_map[name]
+		key = key and (tonumber(key) + 1) or color_name_map[name]
 		if key then
 			colors[key] = c
 		end
 	end
 end
 
+local header_guard = arg[1]:upper():gsub("[^%a_]", "_")
+local theme_name = arg[1]:lower():gsub("[^%a_]", "-")
+
+io.write("#ifndef THEME_", header_guard, "_H\n")
+io.write("#define THEME_", header_guard, "_H 1\n")
 io.write("{\n")
-io.write("  .name = \"", arg[1] or "edit-me!", "\",\n")
+io.write("  .name = \"", theme_name, "\",\n")
 io.write("  .fg = ", colors.fg:as_gdk_rgba_string(), ", /* ", colors.fg:as_hex_string(), " */\n")
 io.write("  .bg = ", colors.bg:as_gdk_rgba_string(), ", /* ", colors.bg:as_hex_string(), " */\n")
 io.write("  .colors = {\n")
@@ -73,3 +84,4 @@ for _, c in ipairs(colors) do
 end
 io.write("  },\n")
 io.write("},\n")
+io.write("#endif /* THEME_", header_guard, " */\n")
