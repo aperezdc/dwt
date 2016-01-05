@@ -119,6 +119,7 @@ typedef struct {
 /* The first element is the "default" theme. */
 static const Theme themes[] = {
 #include "themes/linux.h"
+#include "themes/jellybeans.h"
 #include "themes/monokai.h"
 #include "themes/molokai.h"
 #include "themes/solarized.h"
