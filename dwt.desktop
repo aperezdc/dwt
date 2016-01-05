@@ -11,3 +11,8 @@ StartupNotify=true
 StartupWMClass=Dwt
 Categories=GNOME;GTK;Utility;TerminalEmulator;
 Terminal=false
+Actions=New
+
+[Desktop Action New]
+Name=New Terminal
+Exec=dwt
