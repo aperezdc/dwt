@@ -5,7 +5,8 @@ DWT - Dumb Window Terminal
 DWT is a simple, sleek emulator based on the VTE_ widget. Its main features
 are being nice-looking (according to my personal taste), not being (very)
 configurable, and being a good companion for tiling window managers like
-DWM_ (or my own XDWM_ fork).
+DWM_ (or my own XDWM_ fork). That being said, it works flawlessly and looks
+slick in any GTK+-based environment.
 
 Screenshot
 ==========
@@ -44,37 +45,6 @@ Screenshot
 * Uses current GTK+ widgets and code conventions. Apart from the popover
   and header bar widgets, modern facilities like ``GAction``, property
   bindings, and ``GtkApplication`` are used.
-
-
-Configuration
-=============
-
-Some settings are configurable. Each setting is located in a file under
-``$XDG_CONFIG_HOME/dwt/``. The following settings can be defined:
-
-``allow-bold``
-  If this file exists, bold fonts are allowed. This can be overriden
-  with the ``-b`` / ``--bold`` command line flag.
-
-``show-title``
-  If this file exists, maximized windows keep a title bar instead of hiding
-  it. This can be overriden with the ``-H`` / ``--title-on-maximize``
-  command line flag.
-
-``no-header-bar``
-  If this file exists, a DWT will let the window manager decorate the
-  windows, instead of using a header bar provided by itself. This can be
-  overriden with the ``-N`` / ``--no-header-bar`` command line flag.
-
-``scrollback``
-  The number of lines saved in the scrollback buffer. The first line of the
-  file is interpreted as an unsigned integer. This can be overriden with the
-  ``-s`` / ``--scrollback`` command line flag.
-
-``font``
-  Name and characteristics of the font used by the terminal windows. Only
-  the first line of the file is read. This can be overriden with the ``-f``
-  / ``--font`` command line flag.
 
 
 .. _VTE: http://developer.gnome.org/vte/

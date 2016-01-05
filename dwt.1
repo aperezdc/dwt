@@ -47,39 +47,92 @@ Run the given \fICOMMAND\fP in the terminal window, instead of the
 user shell. If the command has multple arguments, make sure to
 quote it properly: the whole command line has to be passed as
 a single command line option.
+.sp
+Setting: \fBcommand\fP (\fIstring\fP).
 .TP
 .BI \-w \ PATH\fP,\fB \ \-\-workdir\fB= PATH
 Change the active directory to the given \fIPATH\fP before running
 the shell (or any other command) inside the terminal window.
+.TP
+.BI \-f \ FONT\fP,\fB \ \-\-font\fB= FONT
+Sets the font used by the terminal emulator. The font name is
+interpreted using FontConfig. The default is "terminus 11".
+.sp
+Setting: \fBfont\fP (\fIstring\fP).
+.TP
+.BI \-T \ THEME\fP,\fB \ \-\-theme\fB= THEME
+Choose among one of the built\-in themes. If \fITHEME\fP is \fBlist\fP,
+a list of available themes will be printed.
+.sp
+Setting: \fBtheme\fP (\fIstring\fP).
 .TP
 .BI \-t \ TITLE\fP,\fB \ \-\-title\fB= TITLE
 Defines the initial \fITITLE\fP of the terminal window (which, by
 default, is "dwt"). Even when a title is specified,
 applications may override it using \fIxterm(1)\fP\-compatible
 escape sequences.
+.sp
+Setting: \fBtitle\fP (\fIstring\fP).
 .TP
-.BI \-f \ FONT\fP,\fB \ \-\-font\fB= FONT
-Sets the font used by the terminal emulator. The font name is
-interpreted using FontConfig. The default is "terminus 11".
+.B \-U\fP,\fB  \-\-no\-title\-updates
+Do not update window titles with those provided by applications
+using escape sequences.
+.sp
+Setting: \fBupdate\-title\fP (\fIboolean\fP).
 .TP
 .BI \-s \ BYTES\fP,\fB \ \-\-scrollback\fB= BYTES
 Sets the size of the scrollback buffer. The default is 1024
 bytes (1 kB).
+.sp
+Setting: \fBscrollback\fP (\fIinteger\fP).
 .TP
 .B \-b\fP,\fB  \-\-bold
 Allow usage of bold font variants.
+.sp
+Setting: \fBallow\-bold\fP (\fIboolean\fP).
 .TP
 .B \-N\fP,\fB  \-\-no\-header\-bar
 Disable using a custom header bar widget, and let the window
 manager use its own decorations instead. This may be useful
 to make \fBdwt\fP blend better with your desktop environment.
+.sp
+Setting: \fBno\-header\-bar\fP (\fIboolean\fP).
 .TP
 .B \-H\fP,\fB  \-\-title\-on\-maximize
 Keep a title bar in maximized windows. The default is to
 disable the title bar.
+.sp
+Setting: \fBshow\-title\fP (\fIboolean\fP).
 .TP
 .B \-h\fP,\fB  \-\-help
 Show a summary of available options.
+.UNINDENT
+.SH CONFIGURATION
+.sp
+\fBdwt\fP is configured by writing each setting to a configuration file under
+\fB$XDG_CONFIG_HOME/dwt/\fP (typically \fB~/.config/dwt/\fP). In general, only the
+first line of each configuration file is read, and each file is used for one
+(and only one) setting. This allows to use shell commands to write the
+configuration files for \fBdwt\fP\&. For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+echo true > ~/.config/dwt/allow\-bold
+echo \(aqFira Mono 13\(aq > ~/.config/dwt/font
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The following settings are not available as command line options, and are only
+settable using configuration files:
+.INDENT 0.0
+.IP \(bu 2
+\fBicon\fP (\fIstring\fP): Name of the icon used for application windows.
+.IP \(bu 2
+\fBcursor\-color\fP (\fIstring\fP): Cursor color for the terminal widget.
 .UNINDENT
 .SH EXAMPLES
 .sp
