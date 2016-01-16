@@ -166,6 +166,8 @@ configure_term_widget (VteTerminal  *vtterm,
     /* Pick default settings from the settings... */
     dg_lmem gchar *opt_font = NULL;
     dg_lmem gchar *opt_theme = NULL;
+    dg_lmem gchar *opt_fgcolor = NULL;
+    dg_lmem gchar *opt_bgcolor = NULL;
     gboolean opt_bold;
     guint opt_scroll;
 
@@ -174,6 +176,8 @@ configure_term_widget (VteTerminal  *vtterm,
                   "theme", &opt_theme,
                   "allow-bold", &opt_bold,
                   "scrollback", &opt_scroll,
+                  "foreground-color", &opt_fgcolor,
+                  "background-color", &opt_bgcolor,
                   NULL);
 
     /* ...and allow command line options to override them. */
@@ -210,6 +214,12 @@ configure_term_widget (VteTerminal  *vtterm,
         }
     }
 
+    GdkRGBA fgcolor, bgcolor;
+    if (!(opt_fgcolor && gdk_rgba_parse (&fgcolor, opt_fgcolor)))
+        fgcolor = theme->fg;
+    if (!(opt_bgcolor && gdk_rgba_parse (&bgcolor, opt_bgcolor)))
+        bgcolor = theme->bg;
+
     vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
     vte_terminal_set_mouse_autohide      (vtterm, FALSE);
@@ -220,8 +230,8 @@ configure_term_widget (VteTerminal  *vtterm,
     vte_terminal_set_cursor_blink_mode   (vtterm, VTE_CURSOR_BLINK_OFF);
     vte_terminal_set_cursor_shape        (vtterm, VTE_CURSOR_SHAPE_BLOCK);
     vte_terminal_set_colors              (vtterm,
-                                          &theme->fg,
-                                          &theme->bg,
+                                          &fgcolor,
+                                          &bgcolor,
                                           theme->colors,
                                           G_N_ELEMENTS (theme->colors));
 

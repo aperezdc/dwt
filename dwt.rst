@@ -109,6 +109,10 @@ settable using configuration files:
 
 * ``icon`` (*string*): Name of the icon used for application windows.
 * ``cursor-color`` (*string*): Cursor color for the terminal widget.
+* ``foreground-color`` (*string*): Foreground color of the terminal widget.
+  If not set, the foreground color from the selected theme is used.
+* ``Background-color`` (*string*): Background color of the terminal widget.
+  If not set, the background color from the selected theme is used.
 
 
 EXAMPLES

@@ -79,6 +79,18 @@ DG_SETTINGS_STRING     ("cursor-color",
                         " in #RRGGBB hex format.",
                         "#AA0033");
 
+DG_SETTINGS_STRING     ("background-color",
+                        "Background color",
+                        "Terminal background color. Overrides the color"
+                        " defined in the active theme.",
+                        NULL);
+
+DG_SETTINGS_STRING     ("foreground-color",
+                        "Foreground color",
+                        "Terminal foreground color. Overrides the color"
+                        " defined in the active theme.",
+                        NULL);
+
 DG_SETTINGS_STRING     ("theme",
                         "Color theme",
                         "Name of the built-in color theme to be used for the"
