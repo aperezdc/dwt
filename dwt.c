@@ -134,7 +134,7 @@ static GdkRGBA cursor_inactive = { 0.6,  0.6, 0.6, 1 };
 
 
 /* Regexp used to match URIs and allow clicking them */
-static const gchar uri_regexp[] = "(ftp|http)s?://[-a-zA-Z0-9.?$%&/=_~#.,:;+]*";
+static const gchar uri_regexp[] = "(ftp|http)s?://[-@a-zA-Z0-9.?$%&/=_~#.,:;+]*";
 static const gchar image_regex_string[] = "/[^/]+\\.(png|jpg|jpeg|gif|webp)$";
 
 static GRegex *image_regex = NULL;
