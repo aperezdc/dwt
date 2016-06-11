@@ -17,7 +17,12 @@
 #include <sys/types.h>
 #include <vte/vte.h>
 
+#ifdef GDK_WINDOWING_X11
+# include <gdk/gdkx.h>
+#endif
+
 #define CHECK_FLAGS(_v, _f) (((_v) & (_f)) == (_f))
+#define NDIGITS10(_t) (sizeof (_t) * __CHAR_BIT__ * 3 / 10)
 
 /* Last matched text piece. */
 static gchar *last_match_text = NULL;
@@ -741,6 +746,8 @@ create_new_window (GtkApplication *application,
     }
 
     GtkWidget *window = gtk_application_window_new (application);
+    gtk_widget_set_visual (window,
+                           gdk_screen_get_system_visual (gtk_widget_get_screen (window)));
     gtk_application_window_set_show_menubar (GTK_APPLICATION_WINDOW (window),
                                              FALSE);
     gtk_window_set_title (GTK_WINDOW (window), opt_title);
@@ -785,12 +792,35 @@ create_new_window (GtkApplication *application,
     gtk_container_add (GTK_CONTAINER (window), GTK_WIDGET (vtterm));
     gtk_widget_set_receives_default (GTK_WIDGET (vtterm), TRUE);
 
+    /* We need to realize and show the window for it to have a valid XID */
+    gtk_widget_show_all (window);
+
+    gchar **command_env = g_get_environ ();
+#ifdef GDK_WINDOWING_X11
+    if (GDK_IS_X11_SCREEN (gtk_widget_get_screen (window))) {
+        GdkWindow *gdk_window = gtk_widget_get_window (window);
+        if (gdk_window) {
+            gchar window_id[NDIGITS10(unsigned long)];
+            snprintf (window_id,
+                      sizeof (window_id),
+                      "%lu",
+                      GDK_WINDOW_XID (gdk_window));
+            command_env = g_environ_setenv (command_env,
+                                            "WINDOWID",
+                                            window_id,
+                                            TRUE);
+        } else {
+            g_printerr ("No window, cannot set $WINDOWID!\n");
+        }
+    }
+#endif /* GDK_WINDOWING_X11 */
+
     GPid child_pid;
     if (!vte_terminal_spawn_sync (VTE_TERMINAL (vtterm),
                                   VTE_PTY_DEFAULT,
                                   opt_workdir,
                                   command_argv,
-                                  NULL,
+                                  command_env,
                                   G_SPAWN_SEARCH_PATH,
                                   NULL,
                                   NULL,
@@ -805,7 +835,6 @@ create_new_window (GtkApplication *application,
     }
 
     vte_terminal_watch_child (VTE_TERMINAL (vtterm), child_pid);
-    gtk_widget_show_all (window);
     return window;
 }
 
