@@ -500,6 +500,30 @@ term_mouse_button_released (VteTerminal    *vtterm,
     return FALSE;
 }
 
+static gboolean
+beeped_revealer_timeout (gpointer userdata)
+{
+    GtkWindow *window =
+            GTK_WINDOW (gtk_widget_get_ancestor (GTK_WIDGET (userdata),
+                                                 GTK_TYPE_WINDOW));
+    if (!gtk_window_has_toplevel_focus (window))
+        return TRUE;
+
+    gtk_revealer_set_reveal_child (GTK_REVEALER (userdata), FALSE);
+    return FALSE;  /* Do not re-arm timer, run only once */
+}
+
+static void
+header_bar_term_beeped (VteTerminal *vtterm,
+                        GtkRevealer *revealer)
+{
+    /* If already shown, do nothing */
+    if (gtk_revealer_get_reveal_child (revealer))
+        return;
+
+    gtk_revealer_set_reveal_child (revealer, TRUE);
+    g_timeout_add_seconds (3, beeped_revealer_timeout, revealer);
+}
 
 static void
 setup_header_bar (GtkWidget   *window,
@@ -517,16 +541,38 @@ setup_header_bar (GtkWidget   *window,
                             G_OBJECT (label), "label",
                             G_BINDING_DEFAULT);
 
-    gtk_widget_set_margin_top (label, 5);
-    gtk_widget_set_margin_bottom (label, 5);
-    gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 0);
+    GtkWidget *header = gtk_header_bar_new ();
+    gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header), TRUE);
+    gtk_header_bar_set_has_subtitle (GTK_HEADER_BAR (header), FALSE);
+    gtk_header_bar_set_custom_title (GTK_HEADER_BAR (header), label);
 
-    gtk_window_set_titlebar (GTK_WINDOW (window), hbox);
+    GtkWidget *button = gtk_button_new_from_icon_name ("tab-new-symbolic",
+                                                       GTK_ICON_SIZE_BUTTON);
+    gtk_button_set_relief (GTK_BUTTON (button), GTK_RELIEF_NONE);
+    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "app.new-terminal");
+    gtk_header_bar_pack_start (GTK_HEADER_BAR (header), button);
+
+    GtkWidget *revealer = gtk_revealer_new ();
+    gtk_container_add (GTK_CONTAINER (revealer),
+                       gtk_image_new_from_icon_name ("software-update-urgent-symbolic",
+                                                     GTK_ICON_SIZE_BUTTON));
+    gtk_revealer_set_transition_duration (GTK_REVEALER (revealer), 500);
+    gtk_revealer_set_transition_type (GTK_REVEALER (revealer),
+                                      GTK_REVEALER_TRANSITION_TYPE_CROSSFADE);
+    gtk_header_bar_pack_end (GTK_HEADER_BAR (header), revealer);
+
+    g_signal_connect (G_OBJECT (vtterm), "bell",
+                      G_CALLBACK (header_bar_term_beeped), revealer);
+    g_object_bind_property (G_OBJECT (window), "urgency-hint",
+                            G_OBJECT (revealer), "reveal-child",
+                            G_BINDING_DEFAULT);
+
+    gtk_window_set_titlebar (GTK_WINDOW (window), header);
 
     /* Hide the header bar when the window is maximized. */
     if (!show_maximized_title) {
         g_object_bind_property (G_OBJECT (window), "is-maximized",
-                                G_OBJECT (hbox), "visible",
+                                G_OBJECT (header), "visible",
                                 G_BINDING_INVERT_BOOLEAN);
     }
 }
