@@ -111,7 +111,7 @@ settable using configuration files:
 * ``cursor-color`` (*string*): Cursor color for the terminal widget.
 * ``foreground-color`` (*string*): Foreground color of the terminal widget.
   If not set, the foreground color from the selected theme is used.
-* ``Background-color`` (*string*): Background color of the terminal widget.
+* ``background-color`` (*string*): Background color of the terminal widget.
   If not set, the background color from the selected theme is used.
 * ``mouse-autohide`` (*boolean*): Automatically hide the mouse pointer on
   keypress when it is over a terminal. The mouse pointer will be shown again
