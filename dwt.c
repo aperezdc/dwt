@@ -185,6 +185,16 @@ configure_term_widget (VteTerminal  *vtterm,
                   "background-color", &opt_bgcolor,
                   NULL);
 
+    /*
+     * This ensures that properties are updated for the terminal whenever they
+     * change in the configuration files.
+     *
+     * TODO: For now this is done only for those properties which cannot be
+     *       overriden using command line flags.
+     */
+    g_object_bind_property (dwt_settings_get_instance (), "mouse-autohide",
+                            G_OBJECT (vtterm), "pointer-autohide", G_BINDING_SYNC_CREATE);
+
     /* ...and allow command line options to override them. */
     if (options) {
         dg_lmem gchar *cmd_font = NULL;
@@ -227,7 +237,6 @@ configure_term_widget (VteTerminal  *vtterm,
 
     vte_terminal_set_rewrap_on_resize    (vtterm, TRUE);
     vte_terminal_set_scroll_on_keystroke (vtterm, TRUE);
-    vte_terminal_set_mouse_autohide      (vtterm, FALSE);
     vte_terminal_set_audible_bell        (vtterm, FALSE);
     vte_terminal_set_scroll_on_output    (vtterm, FALSE);
     vte_terminal_set_allow_bold          (vtterm, opt_bold);

@@ -26,6 +26,13 @@ DG_SETTINGS_BOOLEAN    ("allow-bold",
                         " emboldened to create a “fake bold” variant.",
                         TRUE);
 
+DG_SETTINGS_BOOLEAN    ("mouse-autohide",
+                        "Autohide mouse pointer",
+                        "Whether to automatically hide the mouse cursor"
+                        " on key press when the cursor is over a terminal"
+                        " window. To show the cursor again, move the mouse.",
+                        TRUE);
+
 DG_SETTINGS_BOOLEAN    ("show-title",
                         "Show window titles",
                         "Show title bars for maximized terminal windows.",

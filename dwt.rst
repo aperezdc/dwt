@@ -113,6 +113,9 @@ settable using configuration files:
   If not set, the foreground color from the selected theme is used.
 * ``Background-color`` (*string*): Background color of the terminal widget.
   If not set, the background color from the selected theme is used.
+* ``mouse-autohide`` (*boolean*): Automatically hide the mouse pointer on
+  keypress when it is over a terminal. The mouse pointer will be shown again
+  when the mouse is moved.
 
 
 EXAMPLES
