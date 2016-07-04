@@ -116,6 +116,7 @@ settable using configuration files:
 * ``mouse-autohide`` (*boolean*): Automatically hide the mouse pointer on
   keypress when it is over a terminal. The mouse pointer will be shown again
   when the mouse is moved.
+* ``audible-bell`` (*boolean*): Whether the terminal bell is audible.
 
 
 EXAMPLES

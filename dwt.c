@@ -175,8 +175,9 @@ configure_term_widget (VteTerminal  *vtterm,
     dg_lmem gchar *opt_bgcolor = NULL;
     gboolean opt_bold;
     guint opt_scroll;
+    DwtSettings *settings = dwt_settings_get_instance ();
 
-    g_object_get (dwt_settings_get_instance (),
+    g_object_get (settings,
                   "font", &opt_font,
                   "theme", &opt_theme,
                   "allow-bold", &opt_bold,
@@ -192,8 +193,21 @@ configure_term_widget (VteTerminal  *vtterm,
      * TODO: For now this is done only for those properties which cannot be
      *       overriden using command line flags.
      */
-    g_object_bind_property (dwt_settings_get_instance (), "mouse-autohide",
-                            G_OBJECT (vtterm), "pointer-autohide", G_BINDING_SYNC_CREATE);
+    static const struct {
+        const gchar  *setting_name;
+        const gchar  *property_name;
+        GBindingFlags bind_flags;
+    } property_bind_map[] = {
+        { "mouse-autohide", "pointer-autohide", G_BINDING_SYNC_CREATE },
+        { "audible-bell",   "audible-bell",     G_BINDING_SYNC_CREATE },
+    };
+    for (guint i = 0; i < G_N_ELEMENTS (property_bind_map); i++) {
+        g_object_bind_property (settings,
+                                property_bind_map[i].setting_name,
+                                G_OBJECT (vtterm),
+                                property_bind_map[i].property_name,
+                                property_bind_map[i].bind_flags);
+    }
 
     /* ...and allow command line options to override them. */
     if (options) {

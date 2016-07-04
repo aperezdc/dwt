@@ -33,6 +33,12 @@ DG_SETTINGS_BOOLEAN    ("mouse-autohide",
                         " window. To show the cursor again, move the mouse.",
                         TRUE);
 
+DG_SETTINGS_BOOLEAN    ("audible-bell",
+                        "Audible terminal bell",
+                        "Whether the terminal bell is audible (i.e. produces"
+                        " sound.",
+                        FALSE);
+
 DG_SETTINGS_BOOLEAN    ("show-title",
                         "Show window titles",
                         "Show title bars for maximized terminal windows.",
