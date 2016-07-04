@@ -263,13 +263,15 @@ configure_term_widget (VteTerminal  *vtterm,
                                           theme->colors,
                                           G_N_ELEMENTS (theme->colors));
 
+    const GRegexCompileFlags regex_compile_flags =
+        G_REGEX_CASELESS | G_REGEX_OPTIMIZE | G_REGEX_MULTILINE;
     gint match_tag =
         vte_terminal_match_add_gregex (vtterm,
                                        g_regex_new (uri_regexp,
-                                                    G_REGEX_CASELESS,
+                                                    regex_compile_flags,
                                                     G_REGEX_MATCH_NOTEMPTY,
                                                     NULL),
-                                       0);
+                                       G_REGEX_MATCH_NOTEMPTY);
     vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
 }
 
