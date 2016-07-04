@@ -122,6 +122,7 @@ dwt_settings_create (gpointer dummy)
                                             NULL);
     return g_object_new (dwt_settings_get_type (),
                          "settings-path", path,
+                         "settings-monitoring-enabled", TRUE,
                          NULL);
 }
 

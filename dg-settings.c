@@ -225,11 +225,29 @@ dg_settings_monitor_changed (GFileMonitor      *monitor,
                              GFile             *file,
                              GFile             *other_file,
                              GFileMonitorEvent  event,
-                             DgSettingsPrivate *priv)
+                             DgSettings        *settings)
 {
-  g_assert (monitor == priv->monitor);
+    switch (event) {
+        case G_FILE_MONITOR_EVENT_CHANGED:
+        case G_FILE_MONITOR_EVENT_ATTRIBUTE_CHANGED:
+        case G_FILE_MONITOR_EVENT_PRE_UNMOUNT:
+        case G_FILE_MONITOR_EVENT_UNMOUNTED:
+        case G_FILE_MONITOR_EVENT_MOVED:
+        case G_FILE_MONITOR_EVENT_RENAMED:
+        case G_FILE_MONITOR_EVENT_MOVED_IN:
+        case G_FILE_MONITOR_EVENT_MOVED_OUT:
+        case G_FILE_MONITOR_EVENT_CREATED:
+            return;
 
-  /* TODO */
+        case G_FILE_MONITOR_EVENT_DELETED:
+        case G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT: {
+            dg_lmem gchar *filename = g_file_get_basename (file);
+            GParamSpec *pspec =
+                g_object_class_find_property (G_OBJECT_GET_CLASS (settings),
+                                              filename);
+            if (pspec) g_object_notify_by_pspec (G_OBJECT (settings), pspec);
+        }
+    }
 }
 
 
@@ -250,7 +268,7 @@ dg_settings__constructed__ (GObject *object)
       g_signal_connect (priv->monitor,
                         "changed",
                         G_CALLBACK (dg_settings_monitor_changed),
-                        priv);
+                        object);
     } else {
       dg_lmem gchar* path = g_file_get_path (priv->settings_path);
       g_warning ("DgSettings: cannot initialize monitoring for directory '%s'\n", path);
