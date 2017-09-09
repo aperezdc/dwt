@@ -23,3 +23,8 @@ executable('dwt',
 	sources: dwt_sources + dwt_resources,
 	dependencies: dep_vte,
 )
+
+install_man('dwt.1')
+
+install_data('dwt.desktop',
+	install_dir: join_paths(get_option('datadir'), 'applications'))
