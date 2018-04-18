@@ -5,11 +5,14 @@
  * Distributed under terms of the MIT license.
  */
 
+#define PCRE2_CODE_UNIT_WIDTH 8
+
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
 #include "dwt-settings.h"
 #include <gtk/gtk.h>
 #include <gio/gvfs.h>
+#include <pcre2.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -262,16 +265,19 @@ configure_term_widget (VteTerminal  *vtterm,
                                           theme->colors,
                                           G_N_ELEMENTS (theme->colors));
 
-    const GRegexCompileFlags regex_compile_flags =
-        G_REGEX_CASELESS | G_REGEX_OPTIMIZE | G_REGEX_MULTILINE;
-    gint match_tag =
-        vte_terminal_match_add_gregex (vtterm,
-                                       g_regex_new (uri_regexp,
-                                                    regex_compile_flags,
-                                                    G_REGEX_MATCH_NOTEMPTY,
-                                                    NULL),
-                                       G_REGEX_MATCH_NOTEMPTY);
-    vte_terminal_match_set_cursor_type (vtterm, match_tag, GDK_HAND2);
+    g_autoptr(GError) error = NULL;
+    g_autoptr(VteRegex) regex =
+        vte_regex_new_for_match (uri_regexp, -1,
+                                 PCRE2_CASELESS | PCRE2_MULTILINE,
+                                 &error);
+    if (regex) {
+        if (!vte_regex_jit (regex, PCRE2_JIT_COMPLETE, &error))
+            g_warning ("Could not JIT-compile URI regex: %s", error->message);
+        int tag = vte_terminal_match_add_regex (vtterm, regex, PCRE2_NOTEMPTY);
+        vte_terminal_match_set_cursor_type (vtterm, tag, GDK_HAND2);
+    } else {
+        g_critical ("Could not compile URI regex: %s", error->message);
+    }
 }
 
 
@@ -435,19 +441,22 @@ term_mouse_button_released (VteTerminal    *vtterm,
                             GdkEventButton *event,
                             gpointer        userdata)
 {
-    g_free (last_match_text);
-    last_match_text = NULL;
+    g_clear_pointer (&last_match_text, g_free);
 
-    glong row = (glong) (event->y) / vte_terminal_get_char_height (vtterm);
-    glong col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
+    int match_tag;
+    g_autofree char *match =
+        vte_terminal_match_check_event (vtterm, (GdkEvent*) event, &match_tag);
 
-    gint match_tag;
-    g_autofree char* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
+    const long col = event->x / vte_terminal_get_char_width (vtterm);
+    const long row = event->y / vte_terminal_get_char_height (vtterm);
+
+    GtkWindow *window = GTK_WINDOW (gtk_widget_get_ancestor (GTK_WIDGET (vtterm),
+                                                             GTK_TYPE_WINDOW));
 
     if (match && event->button == 1) {
 		if (CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
 			g_autoptr(GError) error = NULL;
-			if (!gtk_show_uri (NULL, match, event->time, &error))
+			if (!gtk_show_uri_on_window (window, match, event->time, &error))
 				g_printerr ("Could not open URL: %s\n", error->message);
 			return FALSE;
 		} else if (g_regex_match (image_regex, match, 0, NULL)) {
@@ -473,8 +482,7 @@ term_mouse_button_released (VteTerminal    *vtterm,
         rect.x = rect.width * col;
         gtk_popover_set_pointing_to (GTK_POPOVER (userdata), &rect);
 
-        GActionMap *actions = G_ACTION_MAP (gtk_widget_get_ancestor (GTK_WIDGET (vtterm),
-                                                                     GTK_TYPE_WINDOW));
+        GActionMap *actions = G_ACTION_MAP (window);
         g_simple_action_set_enabled (G_SIMPLE_ACTION (g_action_map_lookup_action (actions,
                                                                                   "copy")),
                                     vte_terminal_get_has_selection (vtterm));
@@ -531,7 +539,6 @@ setup_header_bar (GtkWidget   *window,
      * Using the default GtkHeaderBar title/subtitle widget makes the bar
      * too thick to look nice for a terminal, so set a custom widget.
      */
-    GtkWidget *hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
     const gchar *title = gtk_window_get_title (GTK_WINDOW (window));
     GtkWidget *label = gtk_label_new (title ? title : "dwt");
     g_object_bind_property (G_OBJECT (vtterm), "window-title",
@@ -667,7 +674,7 @@ copy_action_activated (GSimpleAction *action,
                        gpointer       userdata)
 {
     VteTerminal *vtterm = window_get_term_widget (GTK_WINDOW (userdata));
-    vte_terminal_copy_clipboard (vtterm);
+    vte_terminal_copy_clipboard_format (vtterm, VTE_FORMAT_TEXT);
     vte_terminal_copy_primary (vtterm);
 }
 
@@ -731,11 +738,12 @@ open_url_action_activated (GSimpleAction *action,
                            gpointer       userdata)
 {
     g_autoptr(GError) error = NULL;
-    if (!gtk_show_uri (NULL, last_match_text, GDK_CURRENT_TIME, &error))
-        g_printerr ("Could not open URL: %s\n", error->message);
-
-    g_free (last_match_text);
-    last_match_text = NULL;
+    if (!gtk_show_uri_on_window (GTK_WINDOW (userdata),
+                                 last_match_text,
+                                 GDK_CURRENT_TIME,
+                                 &error))
+        g_warning ("Could not open URL: %s", error->message);
+    g_clear_pointer (&last_match_text, g_free);
 }
 
 
@@ -754,6 +762,21 @@ static const GActionEntry app_actions[] = {
     { "about",        about_action_activated,        NULL, NULL, NULL },
     { "quit",         quit_action_activated,         NULL, NULL, NULL },
 };
+
+
+static void
+on_child_spawned (G_GNUC_UNUSED VteTerminal *vtterm,
+                  GPid pid, GError *error, void *userdata)
+{
+    if (pid == -1) {
+        // Error: report and close window.
+        g_assert_nonnull (error);
+        gtk_window_close (GTK_WINDOW (userdata));
+        g_error ("Cannot spawn child process: %s", error->message);
+    } else {
+        g_assert_null (error);
+    }
+}
 
 
 static GtkWidget*
@@ -883,26 +906,19 @@ create_new_window (GtkApplication *application,
     }
 #endif /* GDK_WINDOWING_X11 */
 
-    GPid child_pid;
-    if (!vte_terminal_spawn_sync (VTE_TERMINAL (vtterm),
-                                  VTE_PTY_DEFAULT,
-                                  opt_workdir,
-                                  command_argv,
-                                  command_env,
-                                  G_SPAWN_SEARCH_PATH,
-                                  NULL,
-                                  NULL,
-                                  &child_pid,
-                                  NULL,
-                                  &error))
-    {
-        g_printerr ("%s: could not spawn shell: %s\n",
-                    __func__, error->message);
-        gtk_widget_destroy (window);
-        return NULL;
-    }
-
-    vte_terminal_watch_child (VTE_TERMINAL (vtterm), child_pid);
+    vte_terminal_spawn_async (VTE_TERMINAL (vtterm),
+                              VTE_PTY_DEFAULT,
+                              opt_workdir,
+                              command_argv,
+                              command_env,
+                              G_SPAWN_SEARCH_PATH,
+                              NULL,
+                              NULL,
+                              NULL,
+                              -1,
+                              NULL,
+                              on_child_spawned,
+                              window);
     return window;
 }
 
