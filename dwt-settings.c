@@ -6,7 +6,6 @@
  */
 
 #include "dg-settings.h"
-#include "dg-util.h"
 
 #ifndef DWT_DEFAULT_FONT
 #define DWT_DEFAULT_FONT "monospace 11"
@@ -117,9 +116,9 @@ DG_SETTINGS_CLASS_END
 static gpointer
 dwt_settings_create (gpointer dummy)
 {
-    dg_lmem gchar* path = g_build_filename (g_get_user_config_dir (),
-                                            g_get_prgname (),
-                                            NULL);
+    g_autofree char *path = g_build_filename (g_get_user_config_dir (),
+                                              g_get_prgname (),
+                                              NULL);
     return g_object_new (dwt_settings_get_type (),
                          "settings-path", path,
                          "settings-monitoring-enabled", TRUE,

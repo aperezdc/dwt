@@ -6,7 +6,6 @@
  */
 
 #include "dg-settings.h"
-#include "dg-util.h"
 #include <gio/gio.h>
 
 
@@ -37,13 +36,13 @@ read_line (GFile *file)
 {
     g_assert (file != NULL);
 
-    dg_lerr GError *error = NULL;
-    dg_lobj GInputStream *stream = G_INPUT_STREAM (g_file_read (file, NULL, &error));
+    g_autoptr(GError) error = NULL;
+    g_autoptr(GInputStream) stream = G_INPUT_STREAM (g_file_read (file, NULL, &error));
 
     if (!stream && error)
         return NULL;
 
-    dg_lobj GDataInputStream *datain = g_data_input_stream_new (stream);
+    g_autoptr(GDataInputStream) datain = g_data_input_stream_new (stream);
     gsize read_length = 0;
 
     return g_data_input_stream_read_line_utf8 (datain,
@@ -56,7 +55,7 @@ read_line (GFile *file)
 static void
 read_boolean (GFile *file, GValue *value)
 {
-    dg_lmem gchar *line = read_line (file);
+    g_autofree char *line = read_line (file);
     if (line == NULL)
         return;
 
@@ -67,7 +66,7 @@ read_boolean (GFile *file, GValue *value)
 static void
 read_uint (GFile *file, GValue *value)
 {
-    dg_lmem gchar *line = read_line (file);
+    g_autofree char *line = read_line (file);
     if (line == NULL)
         return;
 
@@ -85,8 +84,8 @@ dg_settings__get_property__ (GObject    *object,
 {
     DgSettingsPrivate *priv = dg_settings_get_instance_private (DG_SETTINGS (object));
 
-    dg_lobj GFile* setting_file = g_file_get_child (priv->settings_path,
-                                                    g_param_spec_get_name (pspec));
+    g_autoptr(GFile) setting_file = g_file_get_child (priv->settings_path,
+                                                      g_param_spec_get_name (pspec));
 
     /* Use the default value when the file does not exist */
     g_value_copy (g_param_spec_get_default_value (pspec), value);
@@ -118,7 +117,7 @@ write_line (GFile       *file,
     g_assert (line != NULL);
 
     /* TODO: Handle errors */
-    dg_lobj GOutputStream *stream =
+    g_autoptr(GOutputStream) stream =
         G_OUTPUT_STREAM (g_file_open_readwrite (file, NULL, NULL));
     if (stream == NULL)
         return;
@@ -146,8 +145,8 @@ dg_settings__set_property__ (GObject      *object,
 {
     DgSettingsPrivate *priv = dg_settings_get_instance_private (DG_SETTINGS (object));
 
-    dg_lobj GFile *setting_file = g_file_get_child (priv->settings_path,
-                                                    g_param_spec_get_name (pspec));
+    g_autoptr(GFile) setting_file = g_file_get_child (priv->settings_path,
+                                                      g_param_spec_get_name (pspec));
 
     switch (G_PARAM_SPEC_VALUE_TYPE (pspec)) {
         case G_TYPE_BOOLEAN:
@@ -168,8 +167,7 @@ dg_settings_get_property (GObject    *object,
 
   switch (prop_id) {
     case PROP_SETTINGS_PATH: {
-      dg_lmem gchar* path = g_file_get_path (priv->settings_path);
-      g_value_set_string (value, path);
+      g_value_take_string (value, g_file_get_path (priv->settings_path));
       break;
     }
     case PROP_SETTINGS_MONITORING_ENABLED:
@@ -241,7 +239,7 @@ dg_settings_monitor_changed (GFileMonitor      *monitor,
 
         case G_FILE_MONITOR_EVENT_DELETED:
         case G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT: {
-            dg_lmem gchar *filename = g_file_get_basename (file);
+            g_autofree char *filename = g_file_get_basename (file);
             GParamSpec *pspec =
                 g_object_class_find_property (G_OBJECT_GET_CLASS (settings),
                                               filename);
@@ -258,7 +256,7 @@ dg_settings__constructed__ (GObject *object)
 
   g_assert (priv->settings_path);
   if (priv->monitor_enabled) {
-    dg_lerr GError *error = NULL;
+    g_autoptr(GError) error = NULL;
     priv->monitor = g_file_monitor_directory (priv->settings_path,
                                               G_FILE_MONITOR_NONE,
                                               NULL,
@@ -270,7 +268,7 @@ dg_settings__constructed__ (GObject *object)
                         G_CALLBACK (dg_settings_monitor_changed),
                         object);
     } else {
-      dg_lmem gchar* path = g_file_get_path (priv->settings_path);
+      g_autofree char *path = g_file_get_path (priv->settings_path);
       g_warning ("DgSettings: cannot initialize monitoring for directory '%s'\n", path);
       if (error) g_warning ("DgSettings: %s\n", error->message);
 

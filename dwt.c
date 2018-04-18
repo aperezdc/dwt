@@ -7,7 +7,6 @@
 
 #define DWT_GRESOURCE(name)  ("/org/perezdecastro/dwt/" name)
 
-#include "dg-util.h"
 #include "dwt-settings.h"
 #include <gtk/gtk.h>
 #include <gio/gvfs.h>
@@ -169,10 +168,10 @@ configure_term_widget (VteTerminal  *vtterm,
                        GVariantDict *options)
 {
     /* Pick default settings from the settings... */
-    dg_lmem gchar *opt_font = NULL;
-    dg_lmem gchar *opt_theme = NULL;
-    dg_lmem gchar *opt_fgcolor = NULL;
-    dg_lmem gchar *opt_bgcolor = NULL;
+    g_autofree char *opt_font = NULL;
+    g_autofree char *opt_theme = NULL;
+    g_autofree char *opt_fgcolor = NULL;
+    g_autofree char *opt_bgcolor = NULL;
     gboolean opt_bold;
     guint opt_scroll;
     DwtSettings *settings = dwt_settings_get_instance ();
@@ -211,11 +210,11 @@ configure_term_widget (VteTerminal  *vtterm,
 
     /* ...and allow command line options to override them. */
     if (options) {
-        dg_lmem gchar *cmd_font = NULL;
+        g_autofree char *cmd_font = NULL;
         g_variant_dict_lookup (options, "font", "s", &cmd_font);
         if (cmd_font) SWAP (gchar*, cmd_font, opt_font);
 
-        dg_lmem gchar *cmd_theme = NULL;
+        g_autofree char *cmd_theme = NULL;
         g_variant_dict_lookup (options, "theme", "s", &cmd_theme);
         if (cmd_theme) SWAP (gchar*, cmd_theme, opt_theme);
 
@@ -354,7 +353,7 @@ setup_popover (VteTerminal *vtterm)
     g_signal_connect (G_OBJECT (popover), "closed",
                       G_CALLBACK (popover_closed), vtterm);
 
-    dg_lobj GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
+    g_autoptr(GtkBuilder) builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_popover_bind_model (GTK_POPOVER (popover),
                             G_MENU_MODEL (gtk_builder_get_object (builder, "popover-menu")),
                             NULL);
@@ -375,16 +374,16 @@ image_pixbuf_loaded (GInputStream *stream,
                      GAsyncResult *result,
                      GtkWidget    *popover)
 {
-	dg_lerr GError *gerror = NULL;
-	dg_lobj GdkPixbuf *pixbuf = gdk_pixbuf_new_from_stream_finish (result,
-                                                                   &gerror);
-	if (!pixbuf || gerror) {
-		g_printerr ("Could not decode image from pixbuf: %s",
-					gerror->message);
+	g_autoptr(GError) error = NULL;
+    g_autoptr(GdkPixbuf) pixbuf = gdk_pixbuf_new_from_stream_finish (result,
+                                                                     &error);
+	if (!pixbuf || error) {
+		g_printerr ("Could not decode image from pixbuf: %s", error->message);
 		return;
 	}
-	GtkWidget *image = gtk_image_new_from_pixbuf (pixbuf);
-	gtk_container_add (GTK_CONTAINER (popover), image);
+
+    gtk_container_add (GTK_CONTAINER (popover),
+                       gtk_image_new_from_pixbuf (pixbuf));
 	g_signal_connect (popover, "closed",
                       G_CALLBACK (image_popover_closed), NULL);
 	gtk_widget_show_all (popover);
@@ -396,13 +395,11 @@ image_file_opened (GFile        *file,
                    GAsyncResult *result,
                    GtkWidget    *popover)
 {
-	dg_lerr GError *gerror = NULL;
-	dg_lobj GFileInputStream *stream = g_file_read_finish (file,
-                                                           result,
-                                                           &gerror);
-	if (!stream || gerror) {
-		dg_lmem gchar *uri = g_file_get_uri (file);
-		g_printerr ("Could not open URL '%s': %s", uri, gerror->message);
+	g_autoptr(GError) error = NULL;
+    g_autoptr(GFileInputStream) stream = g_file_read_finish (file, result, &error);
+	if (!stream || error) {
+		g_autofree char *uri = g_file_get_uri (file);
+		g_printerr ("Could not open URL '%s': %s", uri, error->message);
 		return;
 	}
 
@@ -422,8 +419,8 @@ make_popover_for_image_url (VteTerminal *vtterm,
 	g_assert (uri);
 
 	GtkWidget *popover = gtk_popover_new (GTK_WIDGET (vtterm));
-	dg_lobj GVfs* gvfs = g_vfs_get_default ();
-	dg_lobj GFile* file = g_vfs_get_file_for_uri (gvfs, uri);
+	g_autoptr(GVfs) gvfs = g_vfs_get_default ();
+	g_autoptr(GFile) file = g_vfs_get_file_for_uri (gvfs, uri);
 	g_file_read_async (file,
                        G_PRIORITY_DEFAULT,
                        NULL,
@@ -445,13 +442,13 @@ term_mouse_button_released (VteTerminal    *vtterm,
     glong col = (glong) (event->x) / vte_terminal_get_char_width  (vtterm);
 
     gint match_tag;
-    dg_lmem gchar* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
+    g_autofree char* match = vte_terminal_match_check (vtterm, col, row, &match_tag);
 
     if (match && event->button == 1) {
 		if (CHECK_FLAGS (event->state, GDK_CONTROL_MASK)) {
-			dg_lerr GError *gerror = NULL;
-			if (!gtk_show_uri (NULL, match, event->time, &gerror))
-				g_printerr ("Could not open URL: %s\n", gerror->message);
+			g_autoptr(GError) error = NULL;
+			if (!gtk_show_uri (NULL, match, event->time, &error))
+				g_printerr ("Could not open URL: %s\n", error->message);
 			return FALSE;
 		} else if (g_regex_match (image_regex, match, 0, NULL)) {
 			/* Show picture in a popover */
@@ -733,9 +730,9 @@ open_url_action_activated (GSimpleAction *action,
                            GVariant      *parameter,
                            gpointer       userdata)
 {
-    dg_lerr GError *gerror = NULL;
-    if (!gtk_show_uri (NULL, last_match_text, GDK_CURRENT_TIME, &gerror))
-        g_printerr ("Could not open URL: %s\n", gerror->message);
+    g_autoptr(GError) error = NULL;
+    if (!gtk_show_uri (NULL, last_match_text, GDK_CURRENT_TIME, &error))
+        g_printerr ("Could not open URL: %s\n", error->message);
 
     g_free (last_match_text);
     last_match_text = NULL;
@@ -763,8 +760,8 @@ static GtkWidget*
 create_new_window (GtkApplication *application,
                    GVariantDict   *options)
 {
-    dg_lmem gchar* command = NULL;
-    dg_lmem gchar* title = NULL;
+    g_autofree char *command = NULL;
+    g_autofree char *title = NULL;
     gboolean opt_show_title;
     gboolean opt_update_title;
     gboolean opt_no_headerbar;
@@ -802,17 +799,17 @@ create_new_window (GtkApplication *application,
      */
     g_assert (opt_title);
 
-    dg_lerr GError *gerror = NULL;
+    g_autoptr(GError) error = NULL;
     gint command_argv_len = 0;
     gchar **command_argv = NULL;
 
     if (!g_shell_parse_argv (opt_command,
                              &command_argv_len,
                              &command_argv,
-                             &gerror))
+                             &error))
     {
         g_printerr ("%s: coult not parse command: %s\n",
-                    __func__, gerror->message);
+                    __func__, error->message);
         return NULL;
     }
 
@@ -897,10 +894,10 @@ create_new_window (GtkApplication *application,
                                   NULL,
                                   &child_pid,
                                   NULL,
-                                  &gerror))
+                                  &error))
     {
         g_printerr ("%s: could not spawn shell: %s\n",
-                    __func__, gerror->message);
+                    __func__, error->message);
         gtk_widget_destroy (window);
         return NULL;
     }
@@ -914,8 +911,8 @@ static void
 app_started (GApplication *application, gpointer userdata)
 {
     /* Set default icon, and preferred theme variant. */
-    dg_lmem gchar* cursor_color = NULL;
-    dg_lmem gchar* icon = NULL;
+    g_autofree char *cursor_color = NULL;
+    g_autofree char *icon = NULL;
     g_object_get (dwt_settings_get_instance (),
                   "cursor-color", &cursor_color,
                   "icon", &icon,
@@ -940,7 +937,7 @@ app_started (GApplication *application, gpointer userdata)
     g_action_map_add_action_entries (G_ACTION_MAP (application), app_actions,
                                      G_N_ELEMENTS (app_actions), application);
 
-    dg_lobj GtkBuilder *builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
+    g_autoptr(GtkBuilder) builder = gtk_builder_new_from_resource (DWT_GRESOURCE ("menus.xml"));
     gtk_application_set_app_menu (GTK_APPLICATION (application),
         G_MENU_MODEL (gtk_builder_get_object (builder, "app-menu")));
 
@@ -980,7 +977,7 @@ app_command_line_received (GApplication            *application,
     g_application_hold (G_APPLICATION (application));
     GVariantDict *options = g_application_command_line_get_options_dict (cmdline);
 
-    dg_lmem gchar *opt_theme = NULL;
+    g_autofree char *opt_theme = NULL;
     if (g_variant_dict_lookup (options, "theme", "s", &opt_theme) && g_str_equal (opt_theme, "list")) {
         for (size_t i = 0; i < G_N_ELEMENTS (themes); i++) {
             g_print ("%s\n", themes[i].name);
@@ -1005,7 +1002,7 @@ get_application_id (const gchar* argv0) {
                 argv0 = slash_position + 1;
             if (!g_str_equal ("dwt", argv0))
                 app_id = g_strdup_printf ("%s.%s", app_id, argv0);
-            g_set_prgname (app_id + DG_LENGTH_OF ("org.perezdecastro.") - 1);
+            g_set_prgname (app_id + G_N_ELEMENTS ("org.perezdecastro.") - 1);
         }
     }
     return (g_str_equal ("none", app_id) ||
@@ -1017,7 +1014,7 @@ get_application_id (const gchar* argv0) {
 int
 main (int argc, char *argv[])
 {
-    dg_lobj GtkApplication *application =
+    g_autoptr(GtkApplication) application =
         gtk_application_new (get_application_id (argv[0]),
                              G_APPLICATION_HANDLES_COMMAND_LINE);
 
