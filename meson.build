@@ -14,10 +14,7 @@ executable('dwt',
 	'dwt-settings.c',
 	'dg-settings.c',
     gnome.compile_resources('dwt.gresources', 'dwt.gresources.xml'),
-	dependencies: [
-        dependency('glib-2.0', version: '>=2.44.1'),
-        dependency('vte-2.91'),
-    ],
+	dependencies: dependency('vte-2.91', version: '>=0.50'),
 	install: true,
 )
 
