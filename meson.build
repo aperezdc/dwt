@@ -2,26 +2,20 @@ project('dwt', 'c',
 	version: '0.6.1',
 	default_options: [
 		'buildtype=debugoptimized',
-		'c_std=c99',
+		'c_std=c11',
 		'b_lto=true',
 	]
 )
 
 gnome = import('gnome')
 
-dwt_resources = gnome.compile_resources('dwt.gresources', 'dwt.gresources.xml')
-
-dep_vte = dependency('vte-2.91')
-dwt_sources = [
+executable('dwt',
 	'dwt.c',
 	'dwt-settings.c',
 	'dg-settings.c',
-]
-
-executable('dwt',
+    gnome.compile_resources('dwt.gresources', 'dwt.gresources.xml'),
+	dependencies: dependency('vte-2.91'),
 	install: true,
-	sources: dwt_sources + dwt_resources,
-	dependencies: dep_vte,
 )
 
 install_man('dwt.1')
