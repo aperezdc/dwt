@@ -2,6 +2,11 @@
 DWT - Dumb Window Terminal
 ==========================
 
+**DWT is no longer maintained** — you might want to use my
+`Termite fork`__ instead.
+
+.. __: https://github.com/aperezdc/termite
+
 DWT is a simple, sleek emulator based on the VTE_ widget. Its main features
 are being nice-looking (according to my personal taste), not being (very)
 configurable, and being a good companion for tiling window managers like
